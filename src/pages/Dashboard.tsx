@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { ArrowRight, BarChart3 } from "lucide-react";
+import { BarChart3 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import complate_icon from "../../public/complate_icon.png";
@@ -11,7 +11,6 @@ type MandalaMajorCell = {
   status: "not_started" | "in_progress" | "achieved";
 };
 
-// マンダラチャートの9マスデータを取得
 const getMandalaGrid = () => {
   const centerGoal = localStorage.getItem("mandala_center_goal_v2") || "";
 
@@ -28,7 +27,7 @@ const getMandalaGrid = () => {
 
   return {
     centerGoal,
-    majorCells: majorCells.slice(0, 8), // 8つだけ
+    majorCells: majorCells.slice(0, 8),
   };
 };
 
@@ -37,19 +36,15 @@ const Dashboard: React.FC = () => {
   const {} = useAuth();
   const [currentDate] = useState(new Date());
 
-  // マンダラグリッドデータを取得
   const mandalaGrid = getMandalaGrid();
 
-  // ★ 年間の予実データ（ダミー）
+  // 🎨 ダミー予実データ
   const currentYearData = {
     year: currentDate.getFullYear(),
-    // 売上（年間）
     revenueTarget: 120_000_000,
     revenueActual: 98_000_000,
-    // 粗利益（年間）
     grossProfitTarget: 48_000_000,
     grossProfitActual: 40_000_000,
-    // 営業利益（年間）
     operatingProfitTarget: 24_000_000,
     operatingProfitActual: 20_000_000,
   };
@@ -89,16 +84,15 @@ const Dashboard: React.FC = () => {
                   return (
                     <div
                       key="center"
-                      className="aspect-square bg-gradient-to-br from-pink-400 to-rose-400 rounded-lg flex items-center justify-center p-2"
+                      className="aspect-square bg-gradient-to-br from-achieved to-achieved/70 rounded-card-lg flex items-center justify-center p-2"
                     >
-                      <p className="text-white text-center text-xs font-semibold line-clamp-3">
+                      <p className="text-white text-center text-note font-semibold line-clamp-3">
                         {mandalaGrid.centerGoal || "目標"}
                       </p>
                     </div>
                   );
                 }
 
-                // 中央以外
                 const cellIndex = index > 4 ? index - 1 : index;
                 const cell = mandalaGrid.majorCells[cellIndex];
                 const hasContent = !!cell?.title;
@@ -109,13 +103,13 @@ const Dashboard: React.FC = () => {
                 return (
                   <div
                     key={index}
-                    className={`relative aspect-square rounded-lg p-2 overflow-hidden flex items-center justify-center border transition-all
+                    className={`relative aspect-square rounded-card-lg p-2 overflow-hidden flex items-center justify-center border transition-all
           ${
             isCompleted
-              ? "bg-pink-50 border-pink-300"
+              ? "bg-achieved/5 border-achieved/30"
               : hasContent
-              ? "bg-emerald-50 border-emerald-300"
-              : "bg-gray-50 border-gray-200"
+              ? "bg-primary/5 border-primary/30"
+              : "bg-background border-border"
           }`}
                   >
                     {isCompleted && (
@@ -128,13 +122,13 @@ const Dashboard: React.FC = () => {
                     )}
 
                     <p
-                      className={`relative z-10 text-center text-xs font-medium line-clamp-3
+                      className={`relative z-10 text-center text-note font-medium line-clamp-3
             ${
               isCompleted
-                ? "text-pink-700"
+                ? "text-achieved"
                 : hasContent
-                ? "text-emerald-700"
-                : "text-gray-600"
+                ? "text-primary"
+                : "text-text/50"
             }`}
                     >
                       {hasContent ? cell!.title : ""}
@@ -147,7 +141,7 @@ const Dashboard: React.FC = () => {
 
           {/* 予実管理（年次PL） セクション */}
           <div
-            className="card bg-gradient-to-br bg-white to-indigo-50 border-2 cursor-pointer hover:shadow-card-hover transition-all group"
+            className="card bg-gradient-to-br bg-white to-primary/5 border-2 cursor-pointer hover:shadow-card-hover transition-all group"
             onClick={() => navigate("/yearlyBudgetActual")}
           >
             <div className="flex items-start justify-between mb-4">
@@ -156,8 +150,8 @@ const Dashboard: React.FC = () => {
                   <BarChart3 className="w-6 h-6" />
                 </div>
                 <div>
-                  <h2 className="text-body-lg font-bold text-text">年次PL</h2>
-                  <p className="text-note text-gray-600">
+                  <h2 className="text-body font-bold text-text">年次PL</h2>
+                  <p className="text-note text-text/70">
                     年間の業績をひと目でチェック
                   </p>
                 </div>
@@ -165,8 +159,8 @@ const Dashboard: React.FC = () => {
             </div>
 
             {/* 年間の予実 */}
-            <div className="bg-white rounded-card-lg p-4 mb-4 border border-blue-200">
-              <div className="text-note text-gray-600 mb-3">
+            <div className="bg-white rounded-card-lg p-4 mb-4 border border-primary/20">
+              <div className="text-note text-text/70 mb-3">
                 {currentYearData.year}年の実績
               </div>
 
@@ -176,17 +170,17 @@ const Dashboard: React.FC = () => {
                   <span className="text-body font-semibold text-text">
                     売上（年間）
                   </span>
-                  <span className="text-body-lg font-bold text-blue-600">
+                  <span className="text-body font-bold text-primary">
                     {revenueRate}%
                   </span>
                 </div>
                 <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
                   <div
-                    className="bg-gradient-to-r from-blue-500 to-blue-400 h-full transition-all duration-500 rounded-full"
+                    className="bg-gradient-to-r from-primary to-primary/80 h-full transition-all duration-500 rounded-full"
                     style={{ width: `${Math.min(revenueRate, 100)}%` }}
                   />
                 </div>
-                <div className="flex justify-between mt-1 text-note text-gray-600">
+                <div className="flex justify-between mt-1 text-note text-text/70">
                   <span>
                     実績：¥
                     {(currentYearData.revenueActual / 1_000_000).toFixed(1)}
@@ -206,17 +200,17 @@ const Dashboard: React.FC = () => {
                   <span className="text-body font-semibold text-text">
                     粗利益（年間）
                   </span>
-                  <span className="text-body-lg font-bold text-emerald-600">
+                  <span className="text-body font-bold text-primary">
                     {grossProfitRate}%
                   </span>
                 </div>
                 <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
                   <div
-                    className="bg-gradient-to-r from-emerald-500 to-emerald-400 h-full transition-all duration-500 rounded-full"
+                    className="bg-gradient-to-r from-primary to-primary/80 h-full transition-all duration-500 rounded-full"
                     style={{ width: `${Math.min(grossProfitRate, 100)}%` }}
                   />
                 </div>
-                <div className="flex justify-between mt-1 text-note text-gray-600">
+                <div className="flex justify-between mt-1 text-note text-text/70">
                   <span>
                     実績： ¥
                     {(currentYearData.grossProfitActual / 1_000_000).toFixed(1)}
@@ -236,17 +230,17 @@ const Dashboard: React.FC = () => {
                   <span className="text-body font-semibold text-text">
                     営業利益（年間）
                   </span>
-                  <span className="text-body-lg font-bold text-purple-600">
+                  <span className="text-body font-bold text-primary">
                     {operatingProfitRate}%
                   </span>
                 </div>
                 <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
                   <div
-                    className="bg-gradient-to-r from-purple-500 to-purple-400 h-full transition-all duration-500 rounded-full"
+                    className="bg-gradient-to-r from-primary to-primary/80 h-full transition-all duration-500 rounded-full"
                     style={{ width: `${Math.min(operatingProfitRate, 100)}%` }}
                   />
                 </div>
-                <div className="flex justify-between mt-1 text-note text-gray-600">
+                <div className="flex justify-between mt-1 text-note text-text/70">
                   <span>
                     実績： ¥
                     {(
@@ -272,8 +266,8 @@ const Dashboard: React.FC = () => {
           <h2 className="text-heading font-bold text-text mb-4">
             In the works...
           </h2>
-          <div className="h-40 flex items-center justify-center bg-gray-50 rounded-card-lg border-2 border-dashed border-gray-300">
-            <p className="text-body text-gray-400">Coming Soon</p>
+          <div className="h-40 flex items-center justify-center bg-background rounded-card-lg border-2 border-dashed border-border">
+            <p className="text-body text-text/40">Coming Soon</p>
           </div>
         </div>
       </div>

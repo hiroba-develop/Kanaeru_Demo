@@ -14,9 +14,7 @@ interface AchievementPopupProps {
 const AchievementPopup: React.FC<AchievementPopupProps> = ({
   isOpen,
   onClose,
-  goalTitle,
   level,
-  message,
 }) => {
   const [showConfetti, setShowConfetti] = useState(false);
 
