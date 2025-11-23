@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { BarChart3, Target } from "lucide-react";
+import { BarChart3 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import complate_icon from "../../public/complate_icon.png";
