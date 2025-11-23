@@ -806,7 +806,7 @@ const MandalaChart: React.FC = () => {
                             whiteSpace: "pre-wrap",
                           }}
                           rows={3}
-                          placeholder={`大目標${cellIndex + 1}を入力`}
+                          placeholder={`ここに22文字まで目標のテキストが入ります。`}
                         />
                       </div>
                     </div>
@@ -979,7 +979,7 @@ const MandalaChart: React.FC = () => {
                               whiteSpace: "pre-wrap",
                             }}
                             rows={3}
-                            placeholder={`中目標${cellIndex + 1}を入力`}
+                            placeholder={`ここに22文字まで目標のテキストが入ります。`}
                           />
                         </div>
                       </div>

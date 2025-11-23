@@ -12,11 +12,12 @@ import {
   // Trophy,
   Users,
   Briefcase,
-  ChartBar,
   Home,
 } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 import headerIcon from "../../public/header_icon.png";
+import { onMandalaGoalUpdate } from "../utils/mandalaIntegration";
+import mandalaIcon from "../assets/mandala_icon.png";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -26,7 +27,17 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [userRole, setUserRole] = useState<string | null>(null);
   const location = useLocation();
+  const isMandalaPage = location.pathname === "/mandalaChart";
   const { logout, user, managedUsers, selectedUser, switchUser } = useAuth();
+  const MandalaIcon: React.FC<{ className?: string }> = ({
+    className = "",
+  }) => (
+    <img
+      src={mandalaIcon}
+      alt="Mandala"
+      className={`inline-block align-middle ${className}`}
+    />
+  );
 
   const getCookie = (name: string): string | null => {
     const nameEQ = name + "=";
@@ -60,7 +71,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     {
       name: "kanaeruマンダラ",
       href: "/mandalaChart",
-      icon: ChartBar,
+      icon: MandalaIcon,
       disabled: false,
       roleRequired: ["0", "1", "2"],
     },
@@ -215,6 +226,17 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           </div>
 
           <div className="flex items-center space-x-1 sm:space-x-2 lg:space-x-4">
+            {isMandalaPage && (
+              <button
+                onClick={() => {
+                  onMandalaGoalUpdate();
+                  alert("年次予実管理の目標を更新しました。");
+                }}
+                className="px-3 py-1.5 rounded-md text-sm font-medium bg-white text-primary border border-primary transition-colors"
+              >
+                目標を更新
+              </button>
+            )}
             {/* 設定ボタン */}
             <Link
               to="/settings"
@@ -275,7 +297,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                     to={item.href}
                     className={`flex items-center px-3 xl:px-4 py-2.5 xl:py-3 rounded-lg transition-colors ${
                       isActive
-                        ? "bg-primary text-white"
+                        ? "bg-white text-primary shadow-sm border border-primary"
                         : "text-gray-700 hover:bg-gray-100"
                     }`}
                   >
@@ -317,7 +339,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                     to={item.href}
                     className={`flex items-center px-3 xl:px-4 py-2.5 xl:py-3 rounded-lg transition-colors ${
                       isActive
-                        ? "bg-primary text-white"
+                        ? "bg-white text-primary shadow-sm border border-primary"
                         : "text-gray-700 hover:bg-gray-100"
                     }`}
                   >
@@ -398,9 +420,9 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                     <Link
                       key={item.name}
                       to={item.href}
-                      className={`flex items-center px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg transition-colors ${
+                      className={`flex items-center px-3 xl:px-4 py-2.5 xl:py-3 rounded-lg transition-colors ${
                         isActive
-                          ? "bg-primary text-white"
+                          ? "bg-white text-primary shadow-sm border border-primary"
                           : "text-gray-700 hover:bg-gray-100"
                       }`}
                       onClick={() => setSidebarOpen(false)}
@@ -441,9 +463,9 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                     <Link
                       key={item.name}
                       to={item.href}
-                      className={`flex items-center px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg transition-colors ${
+                      className={`flex items-center px-3 xl:px-4 py-2.5 xl:py-3 rounded-lg transition-colors ${
                         isActive
-                          ? "bg-primary text-white"
+                          ? "bg-white text-primary shadow-sm border border-primary"
                           : "text-gray-700 hover:bg-gray-100"
                       }`}
                       onClick={() => setSidebarOpen(false)}
