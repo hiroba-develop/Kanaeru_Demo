@@ -605,7 +605,7 @@ const MandalaChart: React.FC = () => {
                   >
                     <div className="text-center w-full">
                       <p className="text-note text-primary text-15px font-bold mb-2">
-                        私が叶える目標
+                        私が叶える最終目標
                       </p>
                       <textarea
                         value={centerGoal}
@@ -749,6 +749,12 @@ const MandalaChart: React.FC = () => {
     const majorCell = majorCells.find((c) => c.id === selectedMajorCellId)!;
     const middleChart = middleCharts[selectedMajorCellId];
 
+    // ★ 追加：大目標が何番かを計算
+    const majorCellIndex = majorCells.findIndex(
+      (c) => c.id === selectedMajorCellId
+    );
+    const majorNumber = majorCellIndex >= 0 ? majorCellIndex + 1 : null;
+
     const gridOrder = [0, 1, 2, 3, null, 4, 5, 6, 7];
 
     return (
@@ -763,8 +769,9 @@ const MandalaChart: React.FC = () => {
                     className="aspect-square border-2 border-primary bg-primary/5 rounded-card-lg p-4 flex flex-col items-center justify-center"
                   >
                     <div className="text-center w-full">
-                      <p className="text-note text-primary font-bold mb-2">
-                        私が叶える目標
+                      {/* ★ ここを書き換え */}
+                      <p className="text-note text-primary font-bold mb-1">
+                        {majorNumber ? `大目標 ${majorNumber}` : "大目標"}
                       </p>
                       <p
                         className="text-body font-bold text-primary"
@@ -908,19 +915,39 @@ const MandalaChart: React.FC = () => {
 
   // 🎨 小目標ビュー：色とフォントを統一
   const renderMinorView = () => {
-    if (!selectedMiddleCellId || !minorCharts[selectedMiddleCellId]) {
+    // 必要なデータが揃っているかチェック
+    if (
+      !selectedMiddleCellId ||
+      !minorCharts[selectedMiddleCellId] ||
+      !selectedMajorCellId ||
+      !middleCharts[selectedMajorCellId]
+    ) {
       return <div className="text-body text-text">データが見つかりません</div>;
     }
 
     const minorChart = minorCharts[selectedMiddleCellId];
-    const middleCell = Object.values(middleCharts)
-      .flatMap((chart) => chart.cells)
-      .find((c) => c.id === selectedMiddleCellId);
+    const middleChartOfSelectedMajor = middleCharts[selectedMajorCellId];
+
+    // ★ 該当の中目標を「選択中の大目標」の中から探す
+    const middleCellIndex = middleChartOfSelectedMajor.cells.findIndex(
+      (c) => c.id === selectedMiddleCellId
+    );
+    const middleCell =
+      middleCellIndex !== -1
+        ? middleChartOfSelectedMajor.cells[middleCellIndex]
+        : null;
 
     return (
       <div className="flex justify-center items-start gap-8">
         <div className="max-w-xl flex-1 space-y-6">
           <div className="w-full">
+            {/* ★ ここで該当する中目標を明示 */}
+            {middleCell && (
+              <p className="text-note text-text/70 mb-1 text-center">
+                中目標 {middleCellIndex + 1}
+              </p>
+            )}
+
             <div className="bg-gradient-to-br from-primary/10 to-primary/5 rounded-card-lg p-4 border-2 border-primary/20">
               <p
                 className="text-body font-bold text-primary text-center"

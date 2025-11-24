@@ -3,7 +3,7 @@ import { Link, useLocation } from "react-router-dom";
 import {
   // Home,
   Map,
-  BarChart3,
+
   // MessageCircle,
   Settings,
   Menu,
@@ -82,15 +82,15 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     //   disabled: false,
     //   roleRequired: ["0", "1", "2"],
     // },
+    // {
+    //   name: "予実管理(月次)",
+    //   href: "/monthlyBudgetActual",
+    //   icon: BarChart3,
+    //   disabled: false,
+    //   roleRequired: ["0", "1", "2"],
+    // },
     {
-      name: "予実管理(月次)",
-      href: "/monthlyBudgetActual",
-      icon: BarChart3,
-      disabled: false,
-      roleRequired: ["0", "1", "2"],
-    },
-    {
-      name: "予実管理(年次)",
+      name: "年次PL",
       href: "/yearlyBudgetActual",
       icon: Map,
       disabled: false,
