@@ -1,19 +1,16 @@
 import React, { useState, useEffect } from "react";
 import {
   Users,
-  DollarSign,
-  Target,
+  Mail,
+  Building2,
+  Banknote,
+  Briefcase,
+  BookOpen,
   Calendar,
   ChevronRight,
   ArrowLeft,
   User,
-  CheckCircle,
-  ChevronDown,
-  ChevronUp,
-  History,
-  Map,
   PlusCircle,
-  TrendingUp,
 } from "lucide-react";
 import type {
   UserPerformanceData,
@@ -23,7 +20,6 @@ import type {
   CompanySize,
   Industry,
   FinancialKnowledge,
-  CommentHistory,
   SalesTarget,
 } from "../types";
 
@@ -589,140 +585,6 @@ const DEMO_USERS: UserPerformanceData[] = [
   },
 ];
 
-interface SalesTargetEditorProps {
-  targets: SalesTarget[];
-  onChange: (year: number, newTarget: number) => void;
-  grossProfitMarginTarget: number;
-  operatingProfitMarginTarget: number;
-  onProfitMarginChange: (type: "gross" | "operating", value: number) => void;
-}
-
-const SalesTargetEditor: React.FC<SalesTargetEditorProps> = ({
-  targets,
-  onChange,
-  grossProfitMarginTarget,
-  operatingProfitMarginTarget,
-  onProfitMarginChange,
-}) => {
-  const [editingCell, setEditingCell] = useState<{
-    year: number;
-    value: string;
-  } | null>(null);
-
-  const handleDoubleClick = (year: number, amount: number) => {
-    setEditingCell({ year, value: String(amount) });
-  };
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (editingCell) {
-      setEditingCell({ ...editingCell, value: e.target.value });
-    }
-  };
-
-  const handleInputBlur = () => {
-    if (editingCell) {
-      const newTarget = parseInt(editingCell.value.replace(/,/g, ""), 10);
-      if (!isNaN(newTarget)) {
-        onChange(editingCell.year, newTarget);
-      }
-      setEditingCell(null);
-    }
-  };
-
-  const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter") {
-      handleInputBlur();
-    }
-    if (e.key === "Escape") {
-      setEditingCell(null);
-    }
-  };
-
-  const renderTableRows = (start: number, end: number) => {
-    return (
-      <React.Fragment>
-        <tr>
-          {targets.slice(start, end).map((target, index) => (
-            <td
-              key={target.year}
-              className="p-2 border text-center bg-gray-100 font-medium"
-            >
-              {start + index + 1}年目 ({target.year}年度)
-            </td>
-          ))}
-        </tr>
-        <tr>
-          {targets.slice(start, end).map((target) => (
-            <td
-              key={target.year}
-              className="p-2 border text-center"
-              onDoubleClick={() =>
-                handleDoubleClick(target.year, target.targetAmount)
-              }
-            >
-              {editingCell?.year === target.year ? (
-                <input
-                  type="text"
-                  value={editingCell.value}
-                  onChange={handleInputChange}
-                  onBlur={handleInputBlur}
-                  onKeyDown={handleInputKeyDown}
-                  className="w-full text-center p-1 border rounded"
-                  autoFocus
-                />
-              ) : (
-                new Intl.NumberFormat("ja-JP").format(target.targetAmount)
-              )}
-            </td>
-          ))}
-        </tr>
-      </React.Fragment>
-    );
-  };
-
-  return (
-    <div className="overflow-x-auto">
-      <h3 className="text-lg font-semibold text-text flex items-center space-x-2">
-        <span>年間売上目標</span>
-      </h3>
-      <table className="w-full border-collapse">
-        <tbody>
-          {renderTableRows(0, 5)}
-          {renderTableRows(5, 10)}
-        </tbody>
-      </table>
-      <div className="flex flex-col gap-4 grid grid-cols-2 mt-4">
-        <div className="flex flex-col gap-2">
-          <h3 className="text-lg font-semibold text-text flex items-center space-x-2">
-            <span>粗利益率目標(%)</span>
-          </h3>
-          <input
-            type="number"
-            value={grossProfitMarginTarget}
-            onChange={(e) =>
-              onProfitMarginChange("gross", Number(e.target.value))
-            }
-            className="w-full p-2 border border-gray-300 rounded-lg"
-          />
-        </div>
-        <div className="flex flex-col gap-2">
-          <h3 className="text-lg font-semibold text-text flex items-center space-x-2">
-            <span>営業利益率目標(%)</span>
-          </h3>
-          <input
-            type="number"
-            value={operatingProfitMarginTarget}
-            onChange={(e) =>
-              onProfitMarginChange("operating", Number(e.target.value))
-            }
-            className="w-full p-2 border border-gray-300 rounded-lg"
-          />
-        </div>
-      </div>
-    </div>
-  );
-};
-
 const ClientManagement: React.FC = () => {
   const [selectedUser, setSelectedUser] = useState<UserPerformanceData | null>(
     null
@@ -734,10 +596,6 @@ const ClientManagement: React.FC = () => {
   const [goodPoint, setGoodPoint] = useState("");
   const [cautionPoint, setCautionPoint] = useState("");
   const [badPoint, setBadPoint] = useState("");
-  const [isCommentSaving, setIsCommentSaving] = useState(false);
-  const [showCommentHistory, setShowCommentHistory] = useState(false);
-  const [selectedYear, setSelectedYear] = useState<string>("");
-  const [selectedMonth, setSelectedMonth] = useState<string>("");
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isAddUserModalOpen, setIsAddUserModalOpen] = useState(false);
   const [newUser, setNewUser] = useState<
@@ -838,7 +696,7 @@ const ClientManagement: React.FC = () => {
 
   const getCardBorderClass = (user: UserPerformanceData) => {
     if (!user.hasComment || !user.commentDate) {
-      return "";
+      return "border-l-4 border-l-[#13AE67]";
     }
 
     const oneMonthAgo = new Date();
@@ -849,10 +707,10 @@ const ClientManagement: React.FC = () => {
     commentDate.setHours(0, 0, 0, 0);
 
     if (commentDate < oneMonthAgo) {
-      return "border-l-4 border-l-red-500";
+      return "border-l-4 border-l-[#13AE67]";
     }
 
-    return "border-l-4 border-l-green-500";
+    return "border-l-4 border-l-[#13AE67]";
   };
 
   // フィルタリングとソート
@@ -893,103 +751,6 @@ const ClientManagement: React.FC = () => {
           return a.userName.localeCompare(b.userName);
       }
     });
-
-  const formatCurrency = (amount: number) => {
-    return (amount / 10000).toFixed(0) + "万円";
-  };
-
-  const formatPercentage = (rate: number) => {
-    return rate.toFixed(1) + "%";
-  };
-
-  const getPerformanceColor = (rate: number) => {
-    if (rate >= 100) return "text-green-600";
-    if (rate >= 80) return "text-yellow-600";
-    return "text-red-600";
-  };
-
-  const getPerformanceBgColor = (rate: number) => {
-    if (rate >= 100) return "bg-green-50 border-green-200";
-    if (rate >= 80) return "bg-yellow-50 border-yellow-200";
-    return "bg-red-50 border-red-200";
-  };
-
-  // コメント保存関数（デモ版）
-  const handleSaveComment = async () => {
-    if (!selectedUser) return;
-    if (
-      !currentComment.trim() &&
-      !goodPoint.trim() &&
-      !cautionPoint.trim() &&
-      !badPoint.trim()
-    )
-      return;
-
-    setIsCommentSaving(true);
-
-    try {
-      // デモ用の遅延
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-
-      const currentDateStr = new Date().toISOString().split("T")[0];
-      const currentYearMonth = currentDateStr.substring(0, 7); // YYYY-MM形式
-
-      const updatedUsers = users.map((user) => {
-        if (user.userId === selectedUser.userId) {
-          const newHistoryEntry: CommentHistory | null = currentComment.trim()
-            ? {
-                id: `comment_${Date.now()}`,
-                comment: currentComment.trim(),
-                date: currentDateStr,
-                yearMonth: currentYearMonth,
-              }
-            : null;
-
-          const newCommentHistory = newHistoryEntry
-            ? [...user.commentHistory, newHistoryEntry]
-            : user.commentHistory;
-
-          const hasNewMainComment = !!currentComment.trim();
-
-          return {
-            ...user,
-            hasComment: user.hasComment || hasNewMainComment,
-            comment: hasNewMainComment ? currentComment.trim() : user.comment,
-            commentDate: hasNewMainComment ? currentDateStr : user.commentDate,
-            goodPoint: goodPoint.trim(),
-            cautionPoint: cautionPoint.trim(),
-            badPoint: badPoint.trim(),
-            commentHistory: newCommentHistory,
-          };
-        }
-        return user;
-      });
-
-      setUsers(updatedUsers);
-
-      // 選択中のユーザーも更新
-      const updatedSelectedUser = updatedUsers.find(
-        (user) => user.userId === selectedUser.userId
-      );
-      if (updatedSelectedUser) {
-        setSelectedUser(updatedSelectedUser);
-        setGoodPoint(updatedSelectedUser.goodPoint || "");
-        setCautionPoint(updatedSelectedUser.cautionPoint || "");
-        setBadPoint(updatedSelectedUser.badPoint || "");
-      }
-
-      setCurrentComment("");
-      // 下書きがあれば削除
-      localStorage.removeItem(`comment_draft_${selectedUser.userId}`);
-
-      alert("アドバイスを保存しました (デモモード)");
-    } catch (err) {
-      console.error("デモコメント保存エラー:", err);
-      alert("コメントの保存中にエラーが発生しました");
-    } finally {
-      setIsCommentSaving(false);
-    }
-  };
 
   const openAddUserModal = () => {
     setNewUser({
@@ -1089,27 +850,6 @@ const ClientManagement: React.FC = () => {
     closeAddUserModal();
   };
 
-  // コメント下書き保存関数
-  const handleSaveDraft = () => {
-    if (!selectedUser) return;
-    const draftData = {
-      comment: currentComment,
-      goodPoint,
-      cautionPoint,
-      badPoint,
-    };
-
-    if (!Object.values(draftData).some((val) => val.trim())) return;
-
-    localStorage.setItem(
-      `comment_draft_${selectedUser.userId}`,
-      JSON.stringify(draftData)
-    );
-    if (window.confirm("下書きを保存しました。ユーザー一覧に戻りますか？")) {
-      setSelectedUser(null);
-    }
-  };
-
   // ユーザー選択時にコメントを読み込む
   const handleUserSelect = (user: UserPerformanceData) => {
     setSelectedUser(user);
@@ -1137,1284 +877,170 @@ const ClientManagement: React.FC = () => {
     }
   };
 
-  // 年のリストを取得
-  const getAvailableYears = () => {
-    if (!selectedUser) return [];
-
-    const years = selectedUser.commentHistory.map(
-      (comment) => comment.yearMonth.split("-")[0]
-    );
-    const uniqueYears = [...new Set(years)].sort().reverse();
-
-    return uniqueYears;
-  };
-
-  // 月のリストを取得（選択された年に応じて）
-  const getAvailableMonths = (year: string) => {
-    if (!selectedUser || !year) return [];
-
-    const months = selectedUser.commentHistory
-      .filter((comment) => comment.yearMonth.startsWith(year))
-      .map((comment) => comment.yearMonth.split("-")[1]);
-    const uniqueMonths = [...new Set(months)].sort();
-
-    return uniqueMonths;
-  };
-
-  // フィルタリングされた履歴を取得
-  const getFilteredHistory = () => {
-    if (!selectedUser) return [];
-
-    let filteredHistory = [...selectedUser.commentHistory];
-
-    if (selectedYear && selectedMonth) {
-      const targetYearMonth = `${selectedYear}-${selectedMonth}`;
-      filteredHistory = filteredHistory.filter(
-        (comment) => comment.yearMonth === targetYearMonth
-      );
-    } else if (selectedYear) {
-      filteredHistory = filteredHistory.filter((comment) =>
-        comment.yearMonth.startsWith(selectedYear)
-      );
-    }
-
-    return filteredHistory.sort(
-      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
-    );
-  };
-
-  // 月名を日本語に変換
-  const getMonthName = (month: string) => {
-    const monthNames = {
-      "01": "1月",
-      "02": "2月",
-      "03": "3月",
-      "04": "4月",
-      "05": "5月",
-      "06": "6月",
-      "07": "7月",
-      "08": "8月",
-      "09": "9月",
-      "10": "10月",
-      "11": "11月",
-      "12": "12月",
-    };
-    return monthNames[month as keyof typeof monthNames] || month;
-  };
-
-  const handleRoadmapChange = (
-    year: number,
-    quarter: number,
-    field: "title" | "advice",
-    value: string
-  ) => {
-    setEditableRoadmap((prev) =>
-      prev.map((y) => {
-        if (y.year === year) {
-          const newQuarters = { ...y.quarters };
-          newQuarters[quarter] = {
-            ...newQuarters[quarter],
-            [field]: value,
-          };
-          return { ...y, quarters: newQuarters };
-        }
-        return y;
-      })
-    );
-  };
-
-  const handleDetailChange = (
-    year: number,
-    quarter: number,
-    detailIndex: number,
-    value: string
-  ) => {
-    setEditableRoadmap((prev) =>
-      prev.map((y) => {
-        if (y.year === year) {
-          const newQuarters = { ...y.quarters };
-          const newDetails = [...newQuarters[quarter].details];
-          newDetails[detailIndex] = value;
-          newQuarters[quarter] = {
-            ...newQuarters[quarter],
-            details: newDetails,
-          };
-          return { ...y, quarters: newQuarters };
-        }
-        return y;
-      })
-    );
-  };
-
-  const handleSaveRoadmap = () => {
-    if (!selectedUser) return; // ユーザーが選択されていない場合は何もしない
-
-    const updatedUsers = users.map((user) =>
-      user.userId === selectedUser.userId
-        ? { ...user, roadmap: editableRoadmap }
-        : user
-    );
-    setUsers(updatedUsers);
-
-    const updatedSelectedUser = updatedUsers.find(
-      (user) => user.userId === selectedUser.userId
-    );
-    if (updatedSelectedUser) {
-      setSelectedUser(updatedSelectedUser);
-    }
-    alert("ナビゲーションを保存しました (デモモード)");
-  };
-
-  const handleSalesTargetChange = (year: number, newTarget: number) => {
-    setEditableSalesTargets((prev) =>
-      prev.map((target) =>
-        target.year === year ? { ...target, targetAmount: newTarget } : target
-      )
-    );
-    setIsSalesTargetModified(true);
-  };
-
-  const handleProfitMarginChange = (
-    type: "gross" | "operating",
-    value: number
-  ) => {
-    if (!selectedUser) return;
-    const key =
-      type === "gross"
-        ? "grossProfitMarginTarget"
-        : "operatingProfitMarginTarget";
-    setSelectedUser((prev) => (prev ? { ...prev, [key]: value } : null));
-    setEditableSalesTargets((prev) => [...prev]); // HACK: to trigger re-render and show save button
-    setIsSalesTargetModified(true);
-  };
-
-  const handleSaveSalesTargets = () => {
-    if (!selectedUser) return;
-    const updatedUsers = users.map((user) =>
-      user.userId === selectedUser.userId
-        ? {
-            ...user,
-            salesTargets: editableSalesTargets,
-            grossProfitMarginTarget: selectedUser.grossProfitMarginTarget,
-            operatingProfitMarginTarget:
-              selectedUser.operatingProfitMarginTarget,
-          }
-        : user
-    );
-    setUsers(updatedUsers);
-    const updatedSelectedUser = updatedUsers.find(
-      (u) => u.userId === selectedUser.userId
-    );
-    if (updatedSelectedUser) {
-      setSelectedUser(updatedSelectedUser);
-    }
-    setIsSalesTargetModified(false);
-    alert("売上目標を保存しました (デモモード)");
-  };
-
   // ユーザー詳細画面
   if (selectedUser) {
-    const currentDate = DEMO_CURRENT_DATE; // デモデータに基づいた現在日付
-    const formatYearMonth = (date: Date) => {
-      return `${date.getFullYear()}年${date.getMonth() + 1}月`;
+    const formatBusinessStartDate = (dateStr?: string) => {
+      if (!dateStr) return "未設定";
+      const [year, month] = dateStr.split("-");
+      return `${year}年${month}月`;
     };
 
-    const currentMonthDate = currentDate;
-    const lastMonthDate = new Date(currentDate);
-    lastMonthDate.setMonth(currentDate.getMonth() - 1);
-    const twoMonthsAgoDate = new Date(currentDate);
-    twoMonthsAgoDate.setMonth(currentDate.getMonth() - 2);
+    const formatCapital = (capital?: number) => {
+      if (!capital || capital <= 0) return "未設定";
+      return capital.toLocaleString("ja-JP") + "円";
+    };
 
     return (
       <div className="space-y-6">
-        {/* ヘッダー */}
+        {/* 戻るボタン */}
         <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <button
-              onClick={() => setSelectedUser(null)}
-              className="flex items-center space-x-2 text-primary hover:text-primary/80 transition-colors"
-            >
-              <ArrowLeft className="h-5 w-5" />
-              <span>ユーザー一覧に戻る</span>
-            </button>
-          </div>
+          <button
+            onClick={() => setSelectedUser(null)}
+            className="flex items-center space-x-2 text-[#13AE67] hover:text-[#13AE67]/80 transition-colors"
+          >
+            <ArrowLeft className="h-5 w-5" />
+            <span>クライアント一覧に戻る</span>
+          </button>
         </div>
 
-        {/* ユーザー情報 */}
-        <div className="card">
-          <div className="flex items-center space-x-4">
-            <div className="bg-primary/10 p-3 rounded-full">
-              <User className="h-8 w-8 text-primary" />
-            </div>
-            <div className="flex-1">
-              <h2 className="text-2xl font-bold text-text">
-                {selectedUser.userName}
-              </h2>
-              <p className="text-text/70">{selectedUser.email}</p>
-              <p className="text-text/70">{selectedUser.companyName}</p>
-            </div>
-            <div className="text-right">
-              <div className="text-sm text-text/70 mb-1">事業開始年月</div>
-              <div className="text-lg font-semibold text-primary">
-                {selectedUser.businessStartDate
-                  ? `${selectedUser.businessStartDate.split("-")[0]}年${
-                      selectedUser.businessStartDate.split("-")[1]
-                    }月`
-                  : "未設定"}
+        {/* クライアント情報カード */}
+        <div className="bg-white border border-gray-200 rounded-2xl p-6 sm:p-8 shadow-sm">
+          {/* ヘッダー */}
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-4">
+              <div className="h-12 w-12 rounded-full bg-[#13AE67]/10 flex items-center justify-center">
+                <User className="h-6 w-6 text-[#13AE67]" />
+              </div>
+              <div>
+                <h2 className="text-xl sm:text-2xl font-bold text-gray-900">
+                  {selectedUser.userName || "未設定"}
+                </h2>
+                <p className="text-sm text-gray-500">
+                  {selectedUser.companyName || "会社名 未設定"}
+                </p>
               </div>
             </div>
-          </div>
-        </div>
-
-        {/* 予実管理状況 */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* 先々月実績 */}
-          <div className="card">
-            <h3 className="text-lg font-semibold text-text mb-4 flex items-center space-x-2">
-              <span>{`${formatYearMonth(twoMonthsAgoDate)}実績`}</span>
-            </h3>
-            <div className="space-y-3">
-              {/* 売上 */}
-              <div
-                className={`p-3 rounded-lg border ${getPerformanceBgColor(
-                  selectedUser.performance.twoMonthsAgo.sales.achievementRate
-                )}`}
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium text-text/70">売上</span>
-                  <DollarSign className="h-4 w-4 text-primary" />
-                </div>
-                <div className="grid grid-cols-3 gap-2 text-sm">
-                  <div>
-                    <p className="text-text/60">目標</p>
-                    <p className="font-semibold">
-                      {formatCurrency(
-                        selectedUser.performance.twoMonthsAgo.sales.target
-                      )}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-text/60">実績</p>
-                    <p className="font-semibold">
-                      {formatCurrency(
-                        selectedUser.performance.twoMonthsAgo.sales.actual
-                      )}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-text/60">達成率</p>
-                    <p
-                      className={`font-bold ${getPerformanceColor(
-                        selectedUser.performance.twoMonthsAgo.sales
-                          .achievementRate
-                      )}`}
-                    >
-                      {formatPercentage(
-                        selectedUser.performance.twoMonthsAgo.sales
-                          .achievementRate
-                      )}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* 粗利益 */}
-              <div
-                className={`p-3 rounded-lg border ${getPerformanceBgColor(
-                  selectedUser.performance.twoMonthsAgo.grossProfit
-                    .achievementRate
-                )}`}
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium text-text/70">
-                    粗利益
-                  </span>
-                  <Target className="h-4 w-4 text-success" />
-                </div>
-                <div className="grid grid-cols-3 gap-2 text-sm">
-                  <div>
-                    <p className="text-text/60">目標</p>
-                    <p className="font-semibold">
-                      {formatCurrency(
-                        selectedUser.performance.twoMonthsAgo.grossProfit.target
-                      )}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-text/60">実績</p>
-                    <p className="font-semibold">
-                      {formatCurrency(
-                        selectedUser.performance.twoMonthsAgo.grossProfit.actual
-                      )}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-text/60">達成率</p>
-                    <p
-                      className={`font-bold ${getPerformanceColor(
-                        selectedUser.performance.twoMonthsAgo.grossProfit
-                          .achievementRate
-                      )}`}
-                    >
-                      {formatPercentage(
-                        selectedUser.performance.twoMonthsAgo.grossProfit
-                          .achievementRate
-                      )}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* 営業利益 */}
-              <div
-                className={`p-3 rounded-lg border ${getPerformanceBgColor(
-                  selectedUser.performance.twoMonthsAgo.operatingProfit
-                    .achievementRate
-                )}`}
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium text-text/70">
-                    営業利益
-                  </span>
-                  <Target className="h-4 w-4 text-info" />
-                </div>
-                <div className="grid grid-cols-3 gap-2 text-sm">
-                  <div>
-                    <p className="text-text/60">目標</p>
-                    <p className="font-semibold">
-                      {formatCurrency(
-                        selectedUser.performance.twoMonthsAgo.operatingProfit
-                          .target
-                      )}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-text/60">実績</p>
-                    <p className="font-semibold">
-                      {formatCurrency(
-                        selectedUser.performance.twoMonthsAgo.operatingProfit
-                          .actual
-                      )}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-text/60">達成率</p>
-                    <p
-                      className={`font-bold ${getPerformanceColor(
-                        selectedUser.performance.twoMonthsAgo.operatingProfit
-                          .achievementRate
-                      )}`}
-                    >
-                      {formatPercentage(
-                        selectedUser.performance.twoMonthsAgo.operatingProfit
-                          .achievementRate
-                      )}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* 先月実績 */}
-          <div className="card">
-            <h3 className="text-lg font-semibold text-text mb-4 flex items-center space-x-2">
-              <span>{`${formatYearMonth(lastMonthDate)}実績`}</span>
-            </h3>
-
-            <div className="space-y-3">
-              {/* 売上 */}
-              <div
-                className={`p-3 rounded-lg border ${getPerformanceBgColor(
-                  selectedUser.performance.lastMonth.sales.achievementRate
-                )}`}
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium text-text/70">売上</span>
-                  <DollarSign className="h-4 w-4 text-primary" />
-                </div>
-                <div className="grid grid-cols-3 gap-2 text-sm">
-                  <div>
-                    <p className="text-text/60">目標</p>
-                    <p className="font-semibold">
-                      {formatCurrency(
-                        selectedUser.performance.lastMonth.sales.target
-                      )}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-text/60">実績</p>
-                    <p className="font-semibold">
-                      {formatCurrency(
-                        selectedUser.performance.lastMonth.sales.actual
-                      )}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-text/60">達成率</p>
-                    <p
-                      className={`font-bold ${getPerformanceColor(
-                        selectedUser.performance.lastMonth.sales.achievementRate
-                      )}`}
-                    >
-                      {formatPercentage(
-                        selectedUser.performance.lastMonth.sales.achievementRate
-                      )}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* 粗利益 */}
-              <div
-                className={`p-3 rounded-lg border ${getPerformanceBgColor(
-                  selectedUser.performance.lastMonth.grossProfit.achievementRate
-                )}`}
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium text-text/70">
-                    粗利益
-                  </span>
-                  <Target className="h-4 w-4 text-success" />
-                </div>
-                <div className="grid grid-cols-3 gap-2 text-sm">
-                  <div>
-                    <p className="text-text/60">目標</p>
-                    <p className="font-semibold">
-                      {formatCurrency(
-                        selectedUser.performance.lastMonth.grossProfit.target
-                      )}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-text/60">実績</p>
-                    <p className="font-semibold">
-                      {formatCurrency(
-                        selectedUser.performance.lastMonth.grossProfit.actual
-                      )}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-text/60">達成率</p>
-                    <p
-                      className={`font-bold ${getPerformanceColor(
-                        selectedUser.performance.lastMonth.grossProfit
-                          .achievementRate
-                      )}`}
-                    >
-                      {formatPercentage(
-                        selectedUser.performance.lastMonth.grossProfit
-                          .achievementRate
-                      )}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* 営業利益 */}
-              <div
-                className={`p-3 rounded-lg border ${getPerformanceBgColor(
-                  selectedUser.performance.lastMonth.operatingProfit
-                    .achievementRate
-                )}`}
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium text-text/70">
-                    営業利益
-                  </span>
-                  <Target className="h-4 w-4 text-info" />
-                </div>
-                <div className="grid grid-cols-3 gap-2 text-sm">
-                  <div>
-                    <p className="text-text/60">目標</p>
-                    <p className="font-semibold">
-                      {formatCurrency(
-                        selectedUser.performance.lastMonth.operatingProfit
-                          .target
-                      )}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-text/60">実績</p>
-                    <p className="font-semibold">
-                      {formatCurrency(
-                        selectedUser.performance.lastMonth.operatingProfit
-                          .actual
-                      )}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-text/60">達成率</p>
-                    <p
-                      className={`font-bold ${getPerformanceColor(
-                        selectedUser.performance.lastMonth.operatingProfit
-                          .achievementRate
-                      )}`}
-                    >
-                      {formatPercentage(
-                        selectedUser.performance.lastMonth.operatingProfit
-                          .achievementRate
-                      )}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* 今月実績 */}
-          <div className="card">
-            <h3 className="text-lg font-semibold text-text mb-4 flex items-center space-x-2">
-              <span>{`${formatYearMonth(currentMonthDate)}実績`}</span>
-            </h3>
-
-            <div className="space-y-3">
-              {/* 売上 */}
-              <div
-                className={`p-3 rounded-lg border ${getPerformanceBgColor(
-                  selectedUser.performance.currentMonth.sales.achievementRate
-                )}`}
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium text-text/70">売上</span>
-                  <DollarSign className="h-4 w-4 text-primary" />
-                </div>
-                <div className="grid grid-cols-3 gap-2 text-sm">
-                  <div>
-                    <p className="text-text/60">目標</p>
-                    <p className="font-semibold">
-                      {formatCurrency(
-                        selectedUser.performance.currentMonth.sales.target
-                      )}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-text/60">実績</p>
-                    <p className="font-semibold">
-                      {formatCurrency(
-                        selectedUser.performance.currentMonth.sales.actual
-                      )}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-text/60">達成率</p>
-                    <p
-                      className={`font-bold ${getPerformanceColor(
-                        selectedUser.performance.currentMonth.sales
-                          .achievementRate
-                      )}`}
-                    >
-                      {formatPercentage(
-                        selectedUser.performance.currentMonth.sales
-                          .achievementRate
-                      )}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* 粗利益 */}
-              <div
-                className={`p-3 rounded-lg border ${getPerformanceBgColor(
-                  selectedUser.performance.currentMonth.grossProfit
-                    .achievementRate
-                )}`}
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium text-text/70">
-                    粗利益
-                  </span>
-                  <Target className="h-4 w-4 text-success" />
-                </div>
-                <div className="grid grid-cols-3 gap-2 text-sm">
-                  <div>
-                    <p className="text-text/60">目標</p>
-                    <p className="font-semibold">
-                      {formatCurrency(
-                        selectedUser.performance.currentMonth.grossProfit.target
-                      )}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-text/60">実績</p>
-                    <p className="font-semibold">
-                      {formatCurrency(
-                        selectedUser.performance.currentMonth.grossProfit.actual
-                      )}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-text/60">達成率</p>
-                    <p
-                      className={`font-bold ${getPerformanceColor(
-                        selectedUser.performance.currentMonth.grossProfit
-                          .achievementRate
-                      )}`}
-                    >
-                      {formatPercentage(
-                        selectedUser.performance.currentMonth.grossProfit
-                          .achievementRate
-                      )}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* 営業利益 */}
-              <div
-                className={`p-3 rounded-lg border ${getPerformanceBgColor(
-                  selectedUser.performance.currentMonth.operatingProfit
-                    .achievementRate
-                )}`}
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium text-text/70">
-                    営業利益
-                  </span>
-                  <Target className="h-4 w-4 text-info" />
-                </div>
-                <div className="grid grid-cols-3 gap-2 text-sm">
-                  <div>
-                    <p className="text-text/60">目標</p>
-                    <p className="font-semibold">
-                      {formatCurrency(
-                        selectedUser.performance.currentMonth.operatingProfit
-                          .target
-                      )}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-text/60">実績</p>
-                    <p className="font-semibold">
-                      {formatCurrency(
-                        selectedUser.performance.currentMonth.operatingProfit
-                          .actual
-                      )}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-text/60">達成率</p>
-                    <p
-                      className={`font-bold ${getPerformanceColor(
-                        selectedUser.performance.currentMonth.operatingProfit
-                          .achievementRate
-                      )}`}
-                    >
-                      {formatPercentage(
-                        selectedUser.performance.currentMonth.operatingProfit
-                          .achievementRate
-                      )}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* 前年同月比 */}
-        <div className="card">
-          <h3 className="text-lg font-semibold text-text mb-4 flex items-center space-x-2">
-            <TrendingUp className="h-5 w-5 text-primary" />
-            <span>前年同月比</span>
-          </h3>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm text-left">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="p-3 font-medium text-text/70">年月</th>
-                  <th className="p-3 font-medium text-text/70">売上</th>
-                  <th className="p-3 font-medium text-text/70">粗利益</th>
-                  <th className="p-3 font-medium text-text/70">営業利益</th>
-                </tr>
-              </thead>
-              <tbody>
-                {selectedUser.performance.yoyCurrentMonth && (
-                  <tr className="border-b">
-                    <td className="p-3 font-medium">
-                      {formatYearMonth(currentMonthDate)}
-                    </td>
-                    <td
-                      className={`p-3 font-semibold ${
-                        selectedUser.performance.yoyCurrentMonth.sales >= 0
-                          ? "text-green-600"
-                          : "text-red-600"
-                      }`}
-                    >
-                      {selectedUser.performance.yoyCurrentMonth.sales.toFixed(
-                        1
-                      )}
-                      %
-                    </td>
-                    <td
-                      className={`p-3 font-semibold ${
-                        selectedUser.performance.yoyCurrentMonth.grossProfit >=
-                        0
-                          ? "text-green-600"
-                          : "text-red-600"
-                      }`}
-                    >
-                      {selectedUser.performance.yoyCurrentMonth.grossProfit.toFixed(
-                        1
-                      )}
-                      %
-                    </td>
-                    <td
-                      className={`p-3 font-semibold ${
-                        selectedUser.performance.yoyCurrentMonth
-                          .operatingProfit >= 0
-                          ? "text-green-600"
-                          : "text-red-600"
-                      }`}
-                    >
-                      {selectedUser.performance.yoyCurrentMonth.operatingProfit.toFixed(
-                        1
-                      )}
-                      %
-                    </td>
-                  </tr>
-                )}
-                {selectedUser.performance.yoyLastMonth && (
-                  <tr className="border-b">
-                    <td className="p-3 font-medium">
-                      {formatYearMonth(lastMonthDate)}
-                    </td>
-                    <td
-                      className={`p-3 font-semibold ${
-                        selectedUser.performance.yoyLastMonth.sales >= 0
-                          ? "text-green-600"
-                          : "text-red-600"
-                      }`}
-                    >
-                      {selectedUser.performance.yoyLastMonth.sales.toFixed(1)}%
-                    </td>
-                    <td
-                      className={`p-3 font-semibold ${
-                        selectedUser.performance.yoyLastMonth.grossProfit >= 0
-                          ? "text-green-600"
-                          : "text-red-600"
-                      }`}
-                    >
-                      {selectedUser.performance.yoyLastMonth.grossProfit.toFixed(
-                        1
-                      )}
-                      %
-                    </td>
-                    <td
-                      className={`p-3 font-semibold ${
-                        selectedUser.performance.yoyLastMonth.operatingProfit >=
-                        0
-                          ? "text-green-600"
-                          : "text-red-600"
-                      }`}
-                    >
-                      {selectedUser.performance.yoyLastMonth.operatingProfit.toFixed(
-                        1
-                      )}
-                      %
-                    </td>
-                  </tr>
-                )}
-                {selectedUser.performance.yoyTwoMonthsAgo && (
-                  <tr className="border-b">
-                    <td className="p-3 font-medium">
-                      {formatYearMonth(twoMonthsAgoDate)}
-                    </td>
-                    <td
-                      className={`p-3 font-semibold ${
-                        selectedUser.performance.yoyTwoMonthsAgo.sales >= 0
-                          ? "text-green-600"
-                          : "text-red-600"
-                      }`}
-                    >
-                      {selectedUser.performance.yoyTwoMonthsAgo.sales.toFixed(
-                        1
-                      )}
-                      %
-                    </td>
-                    <td
-                      className={`p-3 font-semibold ${
-                        selectedUser.performance.yoyTwoMonthsAgo.grossProfit >=
-                        0
-                          ? "text-green-600"
-                          : "text-red-600"
-                      }`}
-                    >
-                      {selectedUser.performance.yoyTwoMonthsAgo.grossProfit.toFixed(
-                        1
-                      )}
-                      %
-                    </td>
-                    <td
-                      className={`p-3 font-semibold ${
-                        selectedUser.performance.yoyTwoMonthsAgo
-                          .operatingProfit >= 0
-                          ? "text-green-600"
-                          : "text-red-600"
-                      }`}
-                    >
-                      {selectedUser.performance.yoyTwoMonthsAgo.operatingProfit.toFixed(
-                        1
-                      )}
-                      %
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        {/* 既存コメント表示 */}
-        {selectedUser.hasComment && (
-          <div className="card bg-blue-50 border-blue-200">
-            <div className="flex items-center space-x-2 mb-3">
-              <CheckCircle className="h-5 w-5 text-green-600" />
-              <h3 className="text-lg font-semibold text-text">
-                最新のアドバイス
-              </h3>
-              <span className="text-sm text-text/70">
-                {selectedUser.commentDate.includes("T")
-                  ? selectedUser.commentDate.replace("T", " ").split(".")[0]
-                  : selectedUser.commentDate}
+            {selectedUser.industry && (
+              <span className="hidden sm:inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
+                {selectedUser.industry}
               </span>
-            </div>
-            <div className="p-4 bg-white rounded-lg border border-blue-200">
-              <p className="text-text whitespace-pre-wrap">
-                {selectedUser.comment}
-              </p>
-            </div>
-          </div>
-        )}
-
-        {/* アドバイス履歴セクション */}
-        {selectedUser.commentHistory.length > 0 && (
-          <div className="card">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-text flex items-center space-x-2">
-                <History className="h-5 w-5 text-primary" />
-                <span>アドバイス履歴</span>
-                <span className="text-sm text-text/70">
-                  （{selectedUser.commentHistory.length}件）
-                </span>
-              </h3>
-              <button
-                onClick={() => setShowCommentHistory(!showCommentHistory)}
-                className="flex items-center space-x-2 text-primary hover:text-primary/80 transition-colors"
-              >
-                <span>
-                  {showCommentHistory ? "履歴を閉じる" : "履歴を表示"}
-                </span>
-                {showCommentHistory ? (
-                  <ChevronUp className="h-4 w-4" />
-                ) : (
-                  <ChevronDown className="h-4 w-4" />
-                )}
-              </button>
-            </div>
-
-            {showCommentHistory && (
-              <div className="space-y-4">
-                {/* フィルター */}
-                <div className="flex flex-col sm:flex-row gap-4 p-4 bg-gray-50 rounded-lg">
-                  <div className="flex-1">
-                    <label className="block text-sm font-medium text-text/70 mb-1">
-                      年で絞り込み
-                    </label>
-                    <select
-                      value={selectedYear}
-                      onChange={(e) => {
-                        setSelectedYear(e.target.value);
-                        setSelectedMonth(""); // 年が変わったら月をリセット
-                      }}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-                    >
-                      <option value="">すべての年</option>
-                      {getAvailableYears().map((year) => (
-                        <option key={year} value={year}>
-                          {year}年
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="flex-1">
-                    <label className="block text-sm font-medium text-text/70 mb-1">
-                      月で絞り込み
-                    </label>
-                    <select
-                      value={selectedMonth}
-                      onChange={(e) => setSelectedMonth(e.target.value)}
-                      disabled={!selectedYear}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
-                    >
-                      <option value="">すべての月</option>
-                      {getAvailableMonths(selectedYear).map((month) => (
-                        <option key={month} value={month}>
-                          {getMonthName(month)}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  {(selectedYear || selectedMonth) && (
-                    <div className="flex items-end">
-                      <button
-                        onClick={() => {
-                          setSelectedYear("");
-                          setSelectedMonth("");
-                        }}
-                        className="px-4 py-2 text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-                      >
-                        フィルタークリア
-                      </button>
-                    </div>
-                  )}
-                </div>
-
-                {/* 履歴一覧 */}
-                <div className="space-y-3">
-                  {getFilteredHistory().map((historyItem) => (
-                    <div
-                      key={historyItem.id}
-                      className="p-4 bg-gray-50 rounded-lg border border-gray-200"
-                    >
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center space-x-2">
-                          <Calendar className="h-4 w-4 text-primary" />
-                          <span className="font-medium text-text">
-                            {historyItem.yearMonth.split("-")[0]}年
-                            {getMonthName(historyItem.yearMonth.split("-")[1])}
-                          </span>
-                        </div>
-                        <span className="text-sm text-text/70">
-                          {historyItem.date.includes("T")
-                            ? historyItem.date.replace("T", " ").split(".")[0]
-                            : historyItem.date}
-                        </span>
-                      </div>
-                      <div className="p-3 bg-white rounded border">
-                        <p className="text-text whitespace-pre-wrap">
-                          {historyItem.comment}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-
-                  {getFilteredHistory().length === 0 && (
-                    <div className="text-center py-8">
-                      <History className="h-8 w-8 text-text/30 mx-auto mb-2" />
-                      <p className="text-text/70">
-                        {selectedYear || selectedMonth
-                          ? "選択された期間にアドバイスはありません"
-                          : "アドバイス履歴がありません"}
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </div>
             )}
           </div>
-        )}
 
-        {/* アドバイス入力エリア */}
-        <div className="card">
-          <h3 className="text-lg font-semibold text-text mb-4">
-            アドバイス入力
-          </h3>
+          <div className="border-t border-gray-100 pt-6 mt-2" />
 
-          {/* アドバイスサマリー */}
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-3 mb-6">
-            <div className="p-4 rounded-lg border-green-200 bg-green-50">
-              <h4 className="font-bold text-green-800 mb-2 flex items-center">
-                ◎ 良かった点
-              </h4>
-              <textarea
-                className={`w-full p-2 border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent resize-y ${
-                  goodPoint !== (selectedUser.goodPoint || "")
-                    ? "bg-yellow-100"
-                    : ""
-                }`}
-                rows={4}
-                placeholder="良かった点を入力..."
-                value={goodPoint}
-                onChange={(e) => setGoodPoint(e.target.value)}
-                maxLength={500}
-              />
-              <div className="text-right text-sm text-text/70 mt-1">
-                {goodPoint.length}/500文字
-              </div>
-            </div>
-            <div className="p-4 rounded-lg border-yellow-200 bg-yellow-50">
-              <h4 className="font-bold text-yellow-800 mb-2 flex items-center">
-                △ 注意点
-              </h4>
-              <textarea
-                className={`w-full p-2 border border-yellow-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent resize-y ${
-                  cautionPoint !== (selectedUser.cautionPoint || "")
-                    ? "bg-yellow-100"
-                    : ""
-                }`}
-                rows={4}
-                placeholder="注意点を入力..."
-                value={cautionPoint}
-                onChange={(e) => setCautionPoint(e.target.value)}
-                maxLength={500}
-              />
-              <div className="text-right text-sm text-text/70 mt-1">
-                {cautionPoint.length}/500文字
-              </div>
-            </div>
-            <div className="p-4 rounded-lg border-red-200 bg-red-50">
-              <h4 className="font-bold text-red-800 mb-2 flex items-center">
-                × 悪かった点
-              </h4>
-              <textarea
-                className={`w-full p-2 border border-red-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent resize-y ${
-                  badPoint !== (selectedUser.badPoint || "")
-                    ? "bg-yellow-100"
-                    : ""
-                }`}
-                rows={4}
-                placeholder="悪かった点を入力..."
-                value={badPoint}
-                onChange={(e) => setBadPoint(e.target.value)}
-                maxLength={500}
-              />
-              <div className="text-right text-sm text-text/70 mt-1">
-                {badPoint.length}/500文字
-              </div>
-            </div>
-          </div>
-
-          {/* 詳細アドバイス */}
-          <h4 className="text-md font-semibold text-text mb-2">
-            {selectedUser.hasComment
-              ? "新しいアドバイス追加（履歴に登録）"
-              : "ワンポイントアドバイス（履歴に登録）"}
-          </h4>
-          <textarea
-            className="w-full p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent resize-none"
-            rows={4}
-            placeholder="こちらに税理士からのアドバイスを入力してください..."
-            value={currentComment}
-            onChange={(e) => setCurrentComment(e.target.value)}
-            maxLength={500}
-          />
-          <div className="flex justify-between items-center mt-4">
-            <div className="text-sm text-text/70">
-              {currentComment.length}/500文字
-            </div>
-            <div className="flex space-x-3">
-              <button
-                onClick={handleSaveDraft}
-                disabled={
-                  isCommentSaving ||
-                  (!currentComment.trim() &&
-                    !goodPoint.trim() &&
-                    !cautionPoint.trim() &&
-                    !badPoint.trim())
-                }
-                className="px-4 py-2 text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                下書き保存
-              </button>
-              <button
-                onClick={handleSaveComment}
-                disabled={
-                  isCommentSaving ||
-                  (!currentComment.trim() &&
-                    !goodPoint.trim() &&
-                    !cautionPoint.trim() &&
-                    !badPoint.trim())
-                }
-                className="px-4 py-2 text-white bg-primary rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
-              >
-                {isCommentSaving && (
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                )}
-                <span>送信</span>
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* ナビゲーション編集セクション */}
-        <div className="card">
-          <h3 className="text-lg font-semibold text-text mb-4 flex items-center space-x-2">
-            <Map className="h-5 w-5 text-primary" />
-            <span>ナビゲーション編集</span>
-          </h3>
-          <div className="space-y-2 max-h-[600px] overflow-y-auto pr-2">
-            {editableRoadmap.map((yearData) => {
-              const originalYearData = selectedUser.roadmap.find(
-                (y) => y.year === yearData.year
-              );
-              return (
-                <div key={yearData.year} className="border rounded-lg">
-                  <button
-                    onClick={() =>
-                      setOpenYear(
-                        openYear === yearData.year ? null : yearData.year
-                      )
-                    }
-                    className="w-full text-left p-4 flex justify-between items-center bg-gray-50 hover:bg-gray-100 transition-colors"
-                  >
-                    <span className="font-semibold">{yearData.year}年度</span>
-                    {openYear === yearData.year ? (
-                      <ChevronUp className="h-5 w-5" />
-                    ) : (
-                      <ChevronDown className="h-5 w-5" />
-                    )}
-                  </button>
-                  {openYear === yearData.year && (
-                    <div className="p-4 border-t space-y-4">
-                      {Object.entries(yearData.quarters).map(
-                        ([q, advice]: [string, RoadmapAdvice]) => {
-                          const quarter = parseInt(q);
-                          const originalQuarterAdvice =
-                            originalYearData?.quarters[quarter];
-                          return (
-                            <div
-                              key={quarter}
-                              className="mb-4 p-4 border rounded-md bg-white shadow-sm"
-                            >
-                              <h4 className="font-bold text-primary mb-3">
-                                第{quarter}四半期
-                              </h4>
-                              <div className="space-y-3">
-                                <div>
-                                  <label className="block text-sm font-medium text-text/70 mb-1">
-                                    タイトル
-                                  </label>
-                                  <input
-                                    type="text"
-                                    value={advice.title}
-                                    onChange={(e) =>
-                                      handleRoadmapChange(
-                                        yearData.year,
-                                        quarter,
-                                        "title",
-                                        e.target.value
-                                      )
-                                    }
-                                    className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent ${
-                                      originalQuarterAdvice &&
-                                      originalQuarterAdvice.title !==
-                                        advice.title
-                                        ? "bg-yellow-100"
-                                        : ""
-                                    }`}
-                                  />
-                                </div>
-                                <div>
-                                  <label className="block text-sm font-medium text-text/70 mb-1">
-                                    アドバイス
-                                  </label>
-                                  <textarea
-                                    value={advice.advice}
-                                    onChange={(e) =>
-                                      handleRoadmapChange(
-                                        yearData.year,
-                                        quarter,
-                                        "advice",
-                                        e.target.value
-                                      )
-                                    }
-                                    rows={2}
-                                    className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent resize-y ${
-                                      originalQuarterAdvice &&
-                                      originalQuarterAdvice.advice !==
-                                        advice.advice
-                                        ? "bg-yellow-100"
-                                        : ""
-                                    }`}
-                                  />
-                                </div>
-                                <div>
-                                  <label className="block text-sm font-medium text-text/70 mb-1">
-                                    詳細タスク
-                                  </label>
-                                  <div className="space-y-2">
-                                    {advice.details.map(
-                                      (detail: string, index: number) => {
-                                        const isDetailChanged =
-                                          originalQuarterAdvice &&
-                                          originalQuarterAdvice.details[
-                                            index
-                                          ] !== detail;
-                                        return (
-                                          <div
-                                            key={index}
-                                            className="flex items-center space-x-2"
-                                          >
-                                            <input
-                                              type="text"
-                                              value={detail}
-                                              onChange={(e) =>
-                                                handleDetailChange(
-                                                  yearData.year,
-                                                  quarter,
-                                                  index,
-                                                  e.target.value
-                                                )
-                                              }
-                                              className={`flex-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent ${
-                                                isDetailChanged
-                                                  ? "bg-yellow-100"
-                                                  : ""
-                                              }`}
-                                            />
-                                          </div>
-                                        );
-                                      }
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        }
-                      )}
-                    </div>
-                  )}
+          {/* 情報グリッド */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-5">
+            {/* メールアドレス */}
+            <div className="flex items-start gap-3">
+              <Mail className="h-5 w-5 text-gray-400 mt-0.5" />
+              <div>
+                <div className="text-xs font-semibold text-gray-500 tracking-wide uppercase">
+                  メールアドレス
                 </div>
-              );
-            })}
-          </div>
-          <div className="flex justify-end mt-4">
-            <button
-              onClick={handleSaveRoadmap}
-              className="px-6 py-2 text-white bg-primary rounded-lg hover:bg-primary/90 transition-colors"
-            >
-              ナビゲーションを保存
-            </button>
-          </div>
-        </div>
+                <div className="mt-1 text-sm font-medium text-gray-900 break-all">
+                  {selectedUser.email || "未設定"}
+                </div>
+              </div>
+            </div>
 
-        {/* 売上目標編集セクション */}
-        <div className="card">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-text flex items-center space-x-2">
-              <Target className="h-5 w-5 text-primary" />
-              <span>目標設定・編集</span>
-            </h3>
-            {isSalesTargetModified && (
-              <button
-                onClick={handleSaveSalesTargets}
-                className="px-4 py-2 text-white bg-green-600 rounded-lg hover:bg-green-700 transition-colors"
-              >
-                保存
-              </button>
-            )}
+            {/* ユーザー名 */}
+            <div className="flex items-start gap-3">
+              <User className="h-5 w-5 text-gray-400 mt-0.5" />
+              <div>
+                <div className="text-xs font-semibold text-gray-500 tracking-wide uppercase">
+                  ユーザー名
+                </div>
+                <div className="mt-1 text-sm font-medium text-gray-900">
+                  {selectedUser.userName || "未設定"}
+                </div>
+              </div>
+            </div>
+
+            {/* 会社名 */}
+            <div className="flex items-start gap-3">
+              <Building2 className="h-5 w-5 text-gray-400 mt-0.5" />
+              <div>
+                <div className="text-xs font-semibold text-gray-500 tracking-wide uppercase">
+                  会社名
+                </div>
+                <div className="mt-1 text-sm font-medium text-gray-900">
+                  {selectedUser.companyName || "未設定"}
+                </div>
+              </div>
+            </div>
+
+            {/* 資本金 */}
+            <div className="flex items-start gap-3">
+              <Banknote className="h-5 w-5 text-gray-400 mt-0.5" />
+              <div>
+                <div className="text-xs font-semibold text-gray-500 tracking-wide uppercase">
+                  資本金
+                </div>
+                <div className="mt-1 text-sm font-medium text-gray-900">
+                  {formatCapital(selectedUser.capital)}
+                </div>
+              </div>
+            </div>
+
+            {/* 会社規模 */}
+            <div className="flex items-start gap-3">
+              <Users className="h-5 w-5 text-gray-400 mt-0.5" />
+              <div>
+                <div className="text-xs font-semibold text-gray-500 tracking-wide uppercase">
+                  会社規模
+                </div>
+                <div className="mt-1">
+                  <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                    {selectedUser.companySize || "未設定"}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* 業界 */}
+            <div className="flex items-start gap-3">
+              <Briefcase className="h-5 w-5 text-gray-400 mt-0.5" />
+              <div>
+                <div className="text-xs font-semibold text-gray-500 tracking-wide uppercase">
+                  業界
+                </div>
+                <div className="mt-1">
+                  <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                    {selectedUser.industry || "未設定"}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* 事業開始年月 */}
+            <div className="flex items-start gap-3">
+              <Calendar className="h-5 w-5 text-gray-400 mt-0.5" />
+              <div>
+                <div className="text-xs font-semibold text-gray-500 tracking-wide uppercase">
+                  事業開始年月
+                </div>
+                <div className="mt-1 text-sm font-medium text-gray-900">
+                  {formatBusinessStartDate(selectedUser.businessStartDate)}
+                </div>
+              </div>
+            </div>
+
+            {/* 財務・会計の知識レベル */}
+            <div className="flex items-start gap-3">
+              <BookOpen className="h-5 w-5 text-gray-400 mt-0.5" />
+              <div>
+                <div className="text-xs font-semibold text-gray-500 tracking-wide uppercase">
+                  財務・会計の知識レベル
+                </div>
+                <div className="mt-1">
+                  <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-[#13AE67]/10 text-[#13AE67]">
+                    {selectedUser.financialKnowledge || "未設定"}
+                  </span>
+                </div>
+              </div>
+            </div>
           </div>
-          <SalesTargetEditor
-            targets={editableSalesTargets}
-            onChange={handleSalesTargetChange}
-            grossProfitMarginTarget={selectedUser.grossProfitMarginTarget || 0}
-            operatingProfitMarginTarget={
-              selectedUser.operatingProfitMarginTarget || 0
-            }
-            onProfitMarginChange={handleProfitMarginChange}
-          />
         </div>
       </div>
     );
@@ -2464,7 +1090,7 @@ const ClientManagement: React.FC = () => {
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
                 />
               </div>
-              <div className="flex items-center space-x-2">
+              {/* <div className="flex items-center space-x-2">
                 <span className="text-sm text-text/70">並び順:</span>
                 <select
                   value={sortOrder}
@@ -2475,7 +1101,7 @@ const ClientManagement: React.FC = () => {
                   <option value="date_asc">最終アドバイス日順(昇順)</option>
                   <option value="date_desc">最終アドバイス日順(降順)</option>
                 </select>
-              </div>
+              </div> */}
             </div>
           </div>
 
@@ -2521,7 +1147,7 @@ const ClientManagement: React.FC = () => {
                     </span>
                   </div>
 
-                  {user.hasComment && (
+                  {/* {user.hasComment && (
                     <div className="flex justify-between items-center">
                       <span className="text-sm text-text/70">
                         最終アドバイス日
@@ -2532,7 +1158,7 @@ const ClientManagement: React.FC = () => {
                           : user.commentDate}
                       </span>
                     </div>
-                  )}
+                  )} */}
                 </div>
               </div>
             ))}

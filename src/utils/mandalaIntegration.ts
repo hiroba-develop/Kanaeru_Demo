@@ -1,317 +1,630 @@
-// マンダラチャートと予実管理の連動ユーティリティ
+// mandalaIntegration.ts
 
+// ===================================
+// 型定義
+// ===================================
+
+export type PlMetric = "revenue" | "grossProfit" | "operatingProfit" | "netWorth";
+
+export interface PlYearTarget {
+  year: number;
+  revenueTarget: number;
+  grossProfitTarget: number;
+  operatingProfitTarget: number;
+  netWorthTarget: number;
+}
+
+export interface PlPlan {
+  yearly: PlYearTarget[];
+  tenYearTargetNetWorth: number;
+}
+
+interface YearlyActualInput {
+  revenueActual?: number;
+  grossProfitActual?: number;
+  operatingProfitActual?: number;
+  netWorthActual?: number;
+}
+
+// ★ MandalaCell 型を定義（MandalaChart.tsx と共有）
+export interface MandalaCell {
+  id: string;
+  title: string;
+  description?: string;
+  achievement: number;
+  status: "not_started" | "in_progress" | "achieved";
+  isChecked?: boolean;
+  plMetric?: PlMetric; // ★ A-1: PlMetric を追加
+}
+
+export type PlYearActual = {
+  year: number;
+  revenueActual: number;
+  grossProfitActual: number;
+  operatingProfitActual: number;
+  netWorthActual: number;
+};
+
+export type PlActual = {
+  yearly: PlYearActual[];
+};
 
 /**
- * マンダラチャートのデータを取得
+ * PL実績値を読み込む
  */
-export const getMandalaData = () => {
-  const centerGoal = localStorage.getItem("mandala_center_goal_v2") || "";
+export function loadPlActual(): PlActual | null {
+  try {
+    const stored = localStorage.getItem("pl_actual_v1");
+    if (!stored) return null;
+    return JSON.parse(stored) as PlActual;
+  } catch (e) {
+    console.error("loadPlActual error:", e);
+    return null;
+  }
+}
+
+/**
+ * PL実績値を保存
+ */
+export function savePlActual(actual: PlActual): void {
+  try {
+    localStorage.setItem("pl_actual_v1", JSON.stringify(actual));
+  } catch (e) {
+    console.error("savePlActual error:", e);
+  }
+}
+
+/**
+ * PL計画を読み込む（既存の関数を export）
+ */
+export function loadPlPlan(): PlPlan | null {
+  try {
+    const stored = localStorage.getItem("pl_plan_v1");
+    if (!stored) return null;
+    return JSON.parse(stored) as PlPlan;
+  } catch (e) {
+    console.error("loadPlPlan error:", e);
+    return null;
+  }
+}
+
+interface MandalaSubChart {
+  centerId: string;
+  centerTitle: string;
+  cells: MandalaCell[];
+}
+
+// ===================================
+// ヘルパー関数
+// ===================================
+
+/**
+ * タイトルからPL指標を自動判定
+ */
+export const detectPlMetricFromTitle = (
+  title: string
+): PlMetric | undefined => {
+  const t = title.replace(/\s/g, "");
+
+  if (/売上|売上高|売上目標/.test(t)) return "revenue";
+  if (/粗利|粗利益/.test(t)) return "grossProfit";
+  if (/営業利益/.test(t)) return "operatingProfit";
+  if (/純資産|資産形成/.test(t)) return "netWorth";
+
+  return undefined;
+};
+
+/**
+ * テキストから金額を抽出
+ * - カンマ & 空白(改行含む)は無視
+ * - 最後に出てくる「数値＋単位（億 / 万 / 円）」を採用
+ *   例) "売上1億→3億" → 3億を採用
+ */
+const extractAmountFromText = (text: string): number | null => {
+  if (!text) return null;
+
+  // カンマと空白（改行含む）を削除してから解析
+  const normalized = text.replace(/[,\s]/g, "");
+
+  // 文字列中に出てくる「数字＋単位」を全部拾う
+  const regex = /(\d+(?:\.\d+)?)(億|万|円)?/g;
+  let match: RegExpExecArray | null;
+  let last: { num: number; unit?: string } | null = null;
+
+  while ((match = regex.exec(normalized)) !== null) {
+    const num = parseFloat(match[1]);
+    const unit = match[2];
+    last = { num, unit }; // 最後にマッチしたものを保持
+  }
+
+  if (!last) return null;
+
+  let { num, unit } = last;
+
+  if (unit === "億") num *= 100000000;
+  else if (unit === "万") num *= 10000;
+
+  return Math.round(num);
+};
+
+/**
+ * テキストから「◯年目」を抽出
+ * 1〜10の範囲のみ有効
+ */
+const extractYearIndexFromText = (text: string): number | null => {
+  const match = text.match(/(\d+)年目/);
+  if (!match) return null;
+  const year = Number(match[1]);
+  return year >= 1 && year <= 10 ? year : null;
+};
+
+// ===================================
+// マンダラデータ取得
+// ===================================
+
+const getMandalaData = () => {
   const majorCells = JSON.parse(
     localStorage.getItem("mandala_major_cells_v2") || "[]"
-  );
+  ) as MandalaCell[];
+  
   const middleCharts = JSON.parse(
     localStorage.getItem("mandala_middle_charts_v2") || "{}"
-  );
+  ) as Record<string, MandalaSubChart>;
+  
   const minorCharts = JSON.parse(
     localStorage.getItem("mandala_minor_charts_v2") || "{}"
-  );
+  ) as Record<string, MandalaSubChart>;
 
-  return {
-    centerGoal,
-    majorCells,
-    middleCharts,
-    minorCharts,
-  };
+  return { majorCells, middleCharts, minorCharts };
+};
+
+// ===================================
+// ① マンダラ → 年次PL 目標反映
+// ===================================
+
+/**
+ * アンカー情報
+ * priority:
+ *   1: 大目標
+ *   2: 中目標
+ *   3: 小目標
+ */
+type Anchor = {
+  year: number;     // 1〜10
+  amount: number;   // 金額
+  priority: number; // 大 < 中 < 小
 };
 
 /**
- * マンダラの目標を年次予実管理の目標値に変換
- * 大目標または中目標のタイトルから金額目標を推定
+ * マンダラから10年分のPL計画を構築
+ *
+ * 仕様:
+ * - 大 / 中 / 小 いずれも「年度あり＋金額あり」「年度なし＋金額あり」をサポート
+ * - 年度なし＋金額あり → 10年目のアンカーとして扱う
+ * - 大・中・小が同じ年度を指している場合は優先度 (小 > 中 > 大) で1つに絞る（加算しない）
+ * - すべてのアンカーをまとめて 1 本のカーブにする
+ *   例）大: 売上1億 / 中: 3年目3000万 / 7年目9000万
+ *       → 0 → 3年目3000万 → 7年目9000万 → 10年目1億 を補間
  */
-export const convertMandalaGoalToYearlyTarget = (
-  goalTitle: string,
-): {
-  revenueTarget?: number;
-  profitTarget?: number;
-  type: "revenue" | "profit" | "custom";
-} => {
-  const lowerTitle = goalTitle.toLowerCase();
+export const getPlPlanFromMandala = (): PlPlan | null => {
+  const { majorCells, middleCharts, minorCharts } = getMandalaData();
 
-  // 売上関連のキーワード
-  const revenueKeywords = [
-    "売上",
-    "売り上げ",
-    "revenue",
-    "sales",
-    "年商",
-    "億円",
-    "万円",
-  ];
-  // 利益関連のキーワード
-  const profitKeywords = [
-    "利益",
-    "profit",
-    "収益",
-    "営業利益",
-    "純利益",
-  ];
+  // ★ 最終目標（センター）もここで読む
+  const centerGoal = localStorage.getItem("mandala_center_goal_v2") || "";
 
-  // 金額を抽出（例：「年商1億円」→ 100000000）
-  const extractAmount = (text: string): number | null => {
-    // 億円の場合
-    const okuMatch = text.match(/(\d+(?:\.\d+)?)億/);
-    if (okuMatch) {
-      return parseFloat(okuMatch[1]) * 100000000;
-    }
-
-    // 万円の場合
-    const manMatch = text.match(/(\d+(?:\.\d+)?)万/);
-    if (manMatch) {
-      return parseFloat(manMatch[1]) * 10000;
-    }
-
-    // 数字のみの場合（そのまま使用）
-    const numMatch = text.match(/(\d+)/);
-    if (numMatch) {
-      return parseInt(numMatch[1], 10);
-    }
-
-    return null;
+  const anchorsByMetric: Record<PlMetric, Anchor[]> = {
+    revenue: [],
+    grossProfit: [],
+    operatingProfit: [],
+    netWorth: [],
   };
 
-  const amount = extractAmount(goalTitle);
+  const addAnchor = (
+    metric: PlMetric | undefined,
+    year: number | null,
+    amount: number | null,
+    priority: number
+  ) => {
+    if (!metric) return;
+    if (!year || year < 1 || year > 10) return;
+    if (!amount || amount <= 0) return;
+    anchorsByMetric[metric].push({ year, amount, priority });
+  };
 
-  // 売上関連の目標か判定
-  if (revenueKeywords.some((keyword) => lowerTitle.includes(keyword))) {
-    return {
-      revenueTarget: amount || undefined,
-      type: "revenue",
-    };
+  // =========================
+  // ★ 最終目標をアンカーとして追加（優先度 4 = 最強）
+  // 例: 「純資産5000万円にする」「売上1億円稼ぐ」
+  // =========================
+  if (centerGoal) {
+    const metric = detectPlMetricFromTitle(centerGoal);
+    const amount = parseAmountFromText(centerGoal); // ← あなたが下に定義したやつ
+    const yearInTitle = extractYearIndexFromText(centerGoal); // 「◯年目」があれば使う
+    const anchorYear = amount ? yearInTitle ?? 10 : null; // 年指定なければ10年目扱い
+
+    if (anchorYear) {
+      addAnchor(metric, anchorYear, amount, 4); // priority 4: 大中小より強く上書き
+    }
   }
 
-  // 利益関連の目標か判定
-  if (profitKeywords.some((keyword) => lowerTitle.includes(keyword))) {
-    return {
-      profitTarget: amount || undefined,
-      type: "profit",
-    };
-  }
+  // =========================
+  // ここからは今までの「大・中・小目標 → アンカー」ロジックをそのまま使用
+  // =========================
+  majorCells.forEach((majorCell) => {
+    const majorMetric = detectPlMetricFromTitle(majorCell.title);
 
-  // カスタム目標（数値が含まれる場合は売上として扱う）
-  if (amount) {
-    return {
-      revenueTarget: amount,
-      type: "custom",
-    };
-  }
+    // 大目標自身
+    const majorAmount = extractAmountFromText(majorCell.title);
+    const majorYearInTitle = extractYearIndexFromText(majorCell.title);
+    const majorAnchorYear = majorAmount
+      ? majorYearInTitle ?? 10 // 年度指定なしなら10年目
+      : null;
 
-  return { type: "custom" };
-};
+    if (majorAnchorYear) {
+      addAnchor(majorMetric, majorAnchorYear, majorAmount, 1);
+    }
 
-/**
- * マンダラの大目標から年次目標を生成
- */
-export const syncMandalaToYearlyTargets = () => {
-  const { majorCells } = getMandalaData();
+    const middleChart = middleCharts[majorCell.id];
+    if (!middleChart) return;
 
-  // 各大目標から目標値を抽出
-  const yearlyTargets: Array<{
-    goalId: string;
-    goalTitle: string;
-    revenueTarget?: number;
-    profitTarget?: number;
-    type: "revenue" | "profit" | "custom";
-  }> = [];
+    middleChart.cells.forEach((middleCell) => {
+      // 中目標は plMetric > タイトル > 大目標 の順で指標判定
+      let metric: PlMetric | undefined = middleCell.plMetric;
+      if (!metric) metric = detectPlMetricFromTitle(middleCell.title);
+      if (!metric) metric = majorMetric;
 
-  majorCells.forEach((cell: any) => {
-    if (cell.title) {
-      const target = convertMandalaGoalToYearlyTarget(cell.title);
-      yearlyTargets.push({
-        goalId: cell.id,
-        goalTitle: cell.title,
-        ...target,
+      // 中目標自身
+      const middleAmount = extractAmountFromText(middleCell.title);
+      const middleYearInTitle = extractYearIndexFromText(middleCell.title);
+      const middleAnchorYear = middleAmount ? middleYearInTitle ?? 10 : null;
+
+      if (middleAnchorYear) {
+        addAnchor(metric, middleAnchorYear, middleAmount, 2);
+      }
+
+      // 小目標
+      const minorChart = minorCharts[middleCell.id];
+      if (!minorChart) return;
+
+      minorChart.cells.forEach((minorCell) => {
+        const minorAmount = extractAmountFromText(minorCell.title);
+        const minorYearInTitle = extractYearIndexFromText(minorCell.title);
+        const minorAnchorYear = minorAmount ? minorYearInTitle ?? 10 : null;
+
+        if (minorAnchorYear) {
+          // 小目標は metric を中目標から継承
+          addAnchor(metric, minorAnchorYear, minorAmount, 3);
+        }
       });
-    }
-  });
-
-  // LocalStorageに保存
-  localStorage.setItem(
-    "mandala_yearly_targets",
-    JSON.stringify(yearlyTargets)
-  );
-
-  return yearlyTargets;
-};
-
-/**
- * 予実管理の実績入力時、該当する小目標を達成扱いにする
- */
-export const updateMinorGoalsFromActuals = (
-  
-  actualRevenue?: number,
-  actualProfit?: number
-) => {
-  const { minorCharts } = getMandalaData();
-
-  // 小目標のタイトルから、実績に関連するものを探す
-  let updated = false;
-
-  Object.keys(minorCharts).forEach((chartKey) => {
-    const chart = minorCharts[chartKey];
-    chart.cells.forEach((cell: any, index: number) => {
-      if (!cell.title) return;
-
-      const lowerTitle = cell.title.toLowerCase();
-      let shouldCheck = false;
-
-      // 売上関連の小目標
-      if (
-        actualRevenue &&
-        (lowerTitle.includes("売上") ||
-          lowerTitle.includes("revenue") ||
-          lowerTitle.includes("販売"))
-      ) {
-        // 売上実績が目標を達成していればチェック
-        const target = convertMandalaGoalToYearlyTarget(cell.title);
-        if (
-          target.revenueTarget &&
-          actualRevenue >= target.revenueTarget
-        ) {
-          shouldCheck = true;
-        }
-      }
-
-      // 利益関連の小目標
-      if (
-        actualProfit &&
-        (lowerTitle.includes("利益") ||
-          lowerTitle.includes("profit") ||
-          lowerTitle.includes("収益"))
-      ) {
-        const target = convertMandalaGoalToYearlyTarget(cell.title);
-        if (target.profitTarget && actualProfit >= target.profitTarget) {
-          shouldCheck = true;
-        }
-      }
-
-      // チェック状態を更新
-      if (shouldCheck && !cell.isChecked) {
-        chart.cells[index] = {
-          ...cell,
-          isChecked: true,
-          achievement: 100,
-          status: "achieved",
-        };
-        updated = true;
-      }
     });
   });
 
-  // 更新があった場合はLocalStorageに保存
+  // アンカーが1つも無ければ null を返す
+  const hasAnyAnchor = (Object.keys(anchorsByMetric) as PlMetric[]).some(
+    (m) => anchorsByMetric[m].length > 0
+  );
+  if (!hasAnyAnchor) return null;
+
+  // ---- 年次ターゲットを初期化 ----
+  const yearly: PlYearTarget[] = Array.from({ length: 10 }, (_, i) => ({
+    year: i + 1,
+    revenueTarget: 0,
+    grossProfitTarget: 0,
+    operatingProfitTarget: 0,
+    netWorthTarget: 0,
+  }));
+
+  // ---- 各指標ごとに 1 本のカーブを作る ----
+  (Object.keys(anchorsByMetric) as PlMetric[]).forEach((metric) => {
+    const anchors = anchorsByMetric[metric];
+    if (anchors.length === 0) return;
+
+    // 1) 年度ごとに最優先のアンカーを1個に絞る
+    const bestAnchorByYear: Record<number, { amount: number; priority: number }> = {};
+
+    anchors.forEach((a) => {
+      const current = bestAnchorByYear[a.year];
+      if (!current || a.priority > current.priority) {
+        bestAnchorByYear[a.year] = { amount: a.amount, priority: a.priority };
+      }
+    });
+
+    const anchorYears = Object.keys(bestAnchorByYear)
+      .map((y) => Number(y))
+      .sort((a, b) => a - b);
+
+    if (anchorYears.length === 0) return;
+
+    // 2) アンカー列からセグメントを作る
+    type Segment = {
+      startYear: number;
+      endYear: number;
+      startAmount: number;
+      endAmount: number;
+    };
+
+    const segments: Segment[] = [];
+
+    // 最初は「1年目:0」→ 最初のアンカー というセグメント
+    let prevYear = 0;
+    let prevAmount = 0;
+
+    anchorYears.forEach((year) => {
+      const amount = bestAnchorByYear[year].amount;
+      segments.push({
+        startYear: prevYear,
+        endYear: year,
+        startAmount: prevAmount,
+        endAmount: amount,
+      });
+      prevYear = year;
+      prevAmount = amount;
+    });
+
+    // 最後のアンカーが10年目より前なら、その後はフラットで10年目まで伸ばす
+    if (prevYear < 10) {
+      segments.push({
+        startYear: prevYear,
+        endYear: 10,
+        startAmount: prevAmount,
+        endAmount: prevAmount,
+      });
+    }
+
+    // 3) 各年の金額をセグメントから線形補間
+    for (let year = 1; year <= 10; year++) {
+      const seg = segments.find(
+        (s) => year >= s.startYear && year <= s.endYear
+      );
+      if (!seg) continue;
+
+      let amount: number;
+      if (seg.endYear === seg.startYear) {
+        amount = seg.endAmount;
+      } else {
+        const t =
+          (year - seg.startYear) / (seg.endYear - seg.startYear); // 0〜1
+        amount = seg.startAmount + (seg.endAmount - seg.startAmount) * t;
+      }
+
+      // ★ 万円単位に丸める
+      amount = Math.round(amount / 10000) * 10000;
+
+      const targetField = `${metric}Target` as keyof PlYearTarget;
+      yearly[year - 1][targetField] = amount;
+    }
+  });
+
+  const tenYearTargetNetWorth = yearly[9].netWorthTarget;
+
+  // 全年全指標が0なら null を返す
+  const hasAnyPlValue = yearly.some(
+    (y) =>
+      y.revenueTarget ||
+      y.grossProfitTarget ||
+      y.operatingProfitTarget ||
+      y.netWorthTarget
+  );
+  if (!hasAnyPlValue) return null;
+
+  const plan: PlPlan = {
+    yearly,
+    tenYearTargetNetWorth,
+  };
+
+  return plan;
+};
+
+// 全角数字 → 半角数字
+const toHalfWidthNumber = (text: string): string => {
+  return text.replace(/[０-９]/g, (c) =>
+    String.fromCharCode(c.charCodeAt(0) - 0xFEE0)
+  );
+};
+
+/**
+ * 「1億円」「5000万」「1億5000万」「50000000」みたいなテキストから
+ * 「円単位の数値」を推定して返す
+ */
+export const parseAmountFromText = (text: string): number => {
+  if (!text) return 0;
+
+  const normalized = toHalfWidthNumber(text).replace(/,/g, "");
+
+  let total = 0;
+
+  // 例: 1億 / 1.5億 / 2億円
+  const okuMatch = normalized.match(/(\d+(?:\.\d+)?)億/);
+  if (okuMatch) {
+    total += parseFloat(okuMatch[1]) * 100_000_000;
+  }
+
+  // 例: 5000万 / 5000万円
+  const manMatch = normalized.match(/(\d+(?:\.\d+)?)万/);
+  if (manMatch) {
+    total += parseFloat(manMatch[1]) * 10_000;
+  }
+
+  // 「億」「万」が一切出てこない場合: 純粋な数字 or xxx円
+  if (!okuMatch && !manMatch) {
+    const plainMatch = normalized.match(/(\d+(?:\.\d+)?)/);
+    if (plainMatch) {
+      total += parseFloat(plainMatch[1]);
+    }
+  }
+
+  return Math.round(total);
+};
+
+/**
+ * マンダラ目標更新時のフック
+ * - MandalaChart から呼ばれる
+ */
+export const onMandalaGoalUpdate = () => {
+  const plPlan = getPlPlanFromMandala();
+
+  if (plPlan) {
+    localStorage.setItem("pl_plan_v1", JSON.stringify(plPlan));
+  } else {
+    localStorage.removeItem("pl_plan_v1");
+  }
+
+  // 年次PL画面に更新を通知（必要ならリスナー側で使う）
+  window.dispatchEvent(new CustomEvent("pl-plan-updated"));
+
+  return plPlan;
+};
+
+// ===================================
+// ② 年次PL 実績 → マンダラ達成更新
+// ===================================
+
+/**
+ * 年次実績入力時にマンダラを更新
+ * - 今は YearlyBudgetActual から呼ばれる想定
+ */
+export const onYearlyActualUpdate = (
+  year: number,
+  actuals: YearlyActualInput
+): boolean => {
+  const { majorCells, middleCharts, minorCharts } = getMandalaData();
+
+  let updated = false;
+  const ACHIEVED_THRESHOLD = 1.0;
+
+  const plPlan = getPlPlanFromMandala();
+  if (!plPlan) return false;
+
+  const yearTarget = plPlan.yearly.find((y) => y.year === year);
+  if (!yearTarget) return false;
+
+  const achievements: Partial<Record<PlMetric, number>> = {};
+
+  if (actuals.revenueActual !== undefined && yearTarget.revenueTarget > 0) {
+    achievements.revenue = actuals.revenueActual / yearTarget.revenueTarget;
+  }
+  if (
+    actuals.grossProfitActual !== undefined &&
+    yearTarget.grossProfitTarget > 0
+  ) {
+    achievements.grossProfit =
+      actuals.grossProfitActual / yearTarget.grossProfitTarget;
+  }
+  if (
+    actuals.operatingProfitActual !== undefined &&
+    yearTarget.operatingProfitTarget > 0
+  ) {
+    achievements.operatingProfit =
+      actuals.operatingProfitActual / yearTarget.operatingProfitTarget;
+  }
+  if (actuals.netWorthActual !== undefined && yearTarget.netWorthTarget > 0) {
+    achievements.netWorth = actuals.netWorthActual / yearTarget.netWorthTarget;
+  }
+
+  // ★ 各大目標・中目標を更新
+  majorCells.forEach((majorCell) => {
+    const middleChart = middleCharts[majorCell.id];
+
+    // ---------------------------
+    // ① 大目標の PL 達成状況を反映（背景ピンク用）
+    // ---------------------------
+    let majorYear = extractYearIndexFromText(majorCell.title);
+    if (majorYear === null) majorYear = 10; // 年指定なしは 10 年目扱い
+
+    const majorMetric = detectPlMetricFromTitle(majorCell.title);
+
+    if (majorMetric && majorYear === year && achievements[majorMetric] != null) {
+      const rate = achievements[majorMetric]!;
+      const achievement = Math.round(Math.min(rate, 1) * 100);
+
+      majorCell.achievement = achievement;
+      majorCell.status =
+        rate >= ACHIEVED_THRESHOLD
+          ? "achieved"
+          : rate > 0
+          ? "in_progress"
+          : "not_started";
+
+      updated = true;
+    }
+
+    // ---------------------------
+    // ② 中目標・小目標の更新（今までのロジックほぼそのまま）
+    // ---------------------------
+    if (!middleChart) return;
+
+    middleChart.cells.forEach((middleCell) => {
+      let metric: PlMetric | undefined =
+        middleCell.plMetric || detectPlMetricFromTitle(middleCell.title);
+
+      if (!metric) return;
+      if (!(metric in achievements)) return;
+
+      let middleYear = extractYearIndexFromText(middleCell.title);
+      if (middleYear === null) middleYear = 10;
+      if (middleYear !== year) return;
+
+      const rate = achievements[metric]!;
+      const minorChart = minorCharts[middleCell.id];
+      if (!minorChart) return;
+
+      let hasMinorGoalForYear = false;
+
+      minorChart.cells.forEach((minorCell) => {
+        const rawYear = extractYearIndexFromText(minorCell.title);
+        const cellYear = rawYear ?? 10;
+        if (cellYear !== year) return;
+
+        hasMinorGoalForYear = true;
+
+        const isAchieved = rate >= ACHIEVED_THRESHOLD;
+        minorCell.isChecked = isAchieved;
+        minorCell.achievement = Math.round(Math.min(rate, 1) * 100);
+        minorCell.status = isAchieved
+          ? "achieved"
+          : rate > 0
+          ? "in_progress"
+          : "not_started";
+
+        updated = true;
+      });
+
+      if (hasMinorGoalForYear) {
+        const checkedCount = minorChart.cells.filter((c) => c.isChecked).length;
+        middleCell.achievement = Math.round(
+          (checkedCount / minorChart.cells.length) * 100
+        );
+      } else {
+        middleCell.achievement = Math.round(
+          Math.min(achievements[metric]!, 1) * 100
+        );
+      }
+
+      middleCell.status =
+        middleCell.achievement >= 100
+          ? "achieved"
+          : middleCell.achievement > 0
+          ? "in_progress"
+          : "not_started";
+
+      updated = true;
+    });
+
+    // ★ ③ 大目標の status は ①で決めるので、
+    //    中目標の平均から上書きする処理（A-3 部分）は削除 or コメントアウトしてOK
+  });
+
   if (updated) {
+    localStorage.setItem("mandala_major_cells_v2", JSON.stringify(majorCells));
+    localStorage.setItem(
+      "mandala_middle_charts_v2",
+      JSON.stringify(middleCharts)
+    );
     localStorage.setItem(
       "mandala_minor_charts_v2",
       JSON.stringify(minorCharts)
     );
-
-    // 中目標と大目標の達成度も再計算が必要（マンダラチャートの再読み込みで反映）
-    return true;
-  }
-
-  return false;
-};
-
-/**
- * マンダラの進捗を取得
- */
-export const getMandalaProgress = () => {
-  const { majorCells, middleCharts, minorCharts } = getMandalaData();
-
-  // 大目標の達成度
-  const majorAchievement =
-    majorCells.length > 0
-      ? majorCells.reduce((sum: number, cell: any) => sum + cell.achievement, 0) /
-        majorCells.length
-      : 0;
-
-  // 中目標の達成度
-  const middleAchievements: number[] = [];
-  Object.values(middleCharts).forEach((chart: any) => {
-    chart.cells.forEach((cell: any) => {
-      middleAchievements.push(cell.achievement);
-    });
-  });
-  const middleAchievement =
-    middleAchievements.length > 0
-      ? middleAchievements.reduce((sum, val) => sum + val, 0) /
-        middleAchievements.length
-      : 0;
-
-  // 小目標の達成度（チェック済み数）
-  let minorTotal = 0;
-  let minorChecked = 0;
-  Object.values(minorCharts).forEach((chart: any) => {
-    chart.cells.forEach((cell: any) => {
-      if (cell.title) {
-        minorTotal++;
-        if (cell.isChecked) {
-          minorChecked++;
-        }
-      }
-    });
-  });
-  const minorAchievement =
-    minorTotal > 0 ? (minorChecked / minorTotal) * 100 : 0;
-
-  return {
-    major: Math.round(majorAchievement),
-    middle: Math.round(middleAchievement),
-    minor: Math.round(minorAchievement),
-    overall: Math.round((majorAchievement + middleAchievement + minorAchievement) / 3),
-  };
-};
-
-/**
- * 予実管理のデータ保存時のフック
- * 年次予実の実績が更新されたら、マンダラの小目標を自動更新
- */
-export const onYearlyActualUpdate = (
-  year: number,
-  data: {
-    revenueActual?: number;
-    grossProfitActual?: number;
-    operatingProfitActual?: number;
-  }
-) => {
-  const updated = updateMinorGoalsFromActuals(
-    data.revenueActual,
-    data.operatingProfitActual
-  );
-
-  if (updated) {
-    // 更新があったことを通知（UI側で処理）
-    const event = new CustomEvent("mandala-updated", {
-      detail: { year, data },
-    });
-    window.dispatchEvent(event);
+    window.dispatchEvent(new CustomEvent("mandala-updated"));
   }
 
   return updated;
 };
-
-/**
- * マンダラの目標変更時のフック
- * 大目標または中目標が変更されたら、年次予実管理の目標値を自動更新
- */
-export const onMandalaGoalUpdate = () => {
-  const yearlyTargets = syncMandalaToYearlyTargets();
-
-  // 更新があったことを通知
-  const event = new CustomEvent("yearly-targets-updated", {
-    detail: { yearlyTargets },
-  });
-  window.dispatchEvent(event);
-
-  return yearlyTargets;
-};
-

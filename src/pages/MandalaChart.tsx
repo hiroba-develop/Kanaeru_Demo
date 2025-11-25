@@ -2,11 +2,14 @@ import React, { useState, useEffect } from "react";
 import { Check } from "lucide-react";
 import AchievementPopup from "../components/AchievementPopup";
 import MandalaLevelIcon from "../components/MandalaLecelIcon";
-import { onMandalaGoalUpdate } from "../utils/mandalaIntegration";
+import {
+  onMandalaGoalUpdate,
+  detectPlMetricFromTitle,
+  type MandalaCell,
+} from "../utils/mandalaIntegration";
 import { ChevronLeft, ArrowLeft } from "lucide-react";
 import complate_icon from "../../public/complate_icon.png";
 
-// 多重リング進捗表示コンポーネント
 type MultiRingProgressProps = {
   totalRings: number;
   filledRings: number;
@@ -19,7 +22,21 @@ type MajorRingProgressProps = {
   size?: number;
 };
 
-// 🎨 色を primary に統一
+const formatTitleWithLineBreaks = (title: string, chunkSize = 8): string => {
+  if (!title) return "";
+  const chars = Array.from(title); // 絵文字やサロゲートペア対策
+  const chunks: string[] = [];
+  for (let i = 0; i < chars.length; i += chunkSize) {
+    chunks.push(chars.slice(i, i + chunkSize).join(""));
+  }
+  return chunks.join("\n");
+};
+
+// 入力時に改行を取り除いて、生のテキストだけを状態に持つ
+const removeLineBreaks = (value: string): string => {
+  return value.replace(/\n/g, "");
+};
+
 const MajorRingProgress: React.FC<MajorRingProgressProps> = ({
   ringRatios,
   size = 190,
@@ -48,7 +65,7 @@ const MajorRingProgress: React.FC<MajorRingProgressProps> = ({
         cy={cy}
         r={radius}
         fill="none"
-        stroke="#13AE67" // 🎨 primary に変更
+        stroke="#13AE67"
         strokeWidth={strokeWidth}
         strokeDasharray={dashArray}
         strokeDashoffset={dashOffset}
@@ -69,7 +86,6 @@ const MajorRingProgress: React.FC<MajorRingProgressProps> = ({
   );
 };
 
-// 🎨 色を primary / achieved に統一
 const MultiRingProgress: React.FC<MultiRingProgressProps> = ({
   totalRings,
   filledRings,
@@ -84,7 +100,6 @@ const MultiRingProgress: React.FC<MultiRingProgressProps> = ({
     const radius = size / 2 - strokeWidth / 2 - i * gap;
     if (radius <= 0) break;
 
-    // 🎨 完成時は achieved、通常は primary
     const color = isCompleted ? "#EC4899" : "#13AE67";
 
     rings.push(
@@ -112,7 +127,6 @@ const MultiRingProgress: React.FC<MultiRingProgressProps> = ({
   );
 };
 
-// 🎨 ステータス枠の色を primary / achieved に統一
 interface MandalaCellFrameProps {
   status: "not_started" | "in_progress" | "achieved";
   children: React.ReactNode;
@@ -125,7 +139,6 @@ const MandalaCellFrame: React.FC<MandalaCellFrameProps> = ({
   const base =
     "aspect-square border-2 rounded-card-lg p-4 flex flex-col transition-all relative";
 
-  // 🎨 achieved はピンク、in_progress は primary 系、未着手は gray
   const statusClass =
     status === "achieved"
       ? "border-achieved bg-achieved/5"
@@ -162,15 +175,6 @@ const MandalaCellFrame: React.FC<MandalaCellFrameProps> = ({
   );
 };
 
-interface MandalaCell {
-  id: string;
-  title: string;
-  description?: string;
-  achievement: number;
-  status: "not_started" | "in_progress" | "achieved";
-  isChecked?: boolean;
-}
-
 interface MandalaSubChart {
   centerId: string;
   centerTitle: string;
@@ -187,8 +191,6 @@ const MandalaChart: React.FC = () => {
   const [selectedMiddleCellId, setSelectedMiddleCellId] = useState<
     string | null
   >(null);
-
-  const [isComposing, setIsComposing] = useState(false);
 
   const [centerGoal, setCenterGoal] = useState(() => {
     const saved = localStorage.getItem("mandala_center_goal_v2");
@@ -273,9 +275,11 @@ const MandalaChart: React.FC = () => {
   });
 
   useEffect(() => {
-    if (centerGoal) {
-      localStorage.setItem("mandala_center_goal_v2", centerGoal);
-    }
+    // 常に保存（空文字のときに古い値が残らないように）
+    localStorage.setItem("mandala_center_goal_v2", centerGoal);
+
+    // 最終目標が変わるたびに PL 計画を再生成
+    onMandalaGoalUpdate();
   }, [centerGoal]);
 
   useEffect(() => {
@@ -302,6 +306,7 @@ const MandalaChart: React.FC = () => {
       "mandala_minor_charts_v2",
       JSON.stringify(minorCharts)
     );
+    onMandalaGoalUpdate();
   }, [minorCharts]);
 
   useEffect(() => {
@@ -435,11 +440,18 @@ const MandalaChart: React.FC = () => {
         (c) => c.id === middleCellId
       );
       if (cellIndex !== -1) {
+        const prevCell = middleChart.cells[cellIndex];
+
+        // ✅ すでに PL 側で「達成」になっている中目標は、小目標操作では status をいじらない
+        if (prevCell.status === "achieved") {
+          return;
+        }
+
         const updatedCells = [...middleChart.cells];
         updatedCells[cellIndex] = {
-          ...updatedCells[cellIndex],
+          ...prevCell,
           achievement,
-          status: getCellStatus(achievement),
+          status: getCellStatus(achievement), // ここは「PL 未達のときだけ」有効
         };
 
         setMiddleCharts({
@@ -476,13 +488,19 @@ const MandalaChart: React.FC = () => {
     setMajorCells((prev) =>
       prev.map((cell) => {
         if (cell.id === majorId) {
+          // ★ PL 側で決まった status は触らない
           const newCell = {
             ...cell,
-            achievement,
-            status: getCellStatus(achievement),
+            achievement, // リング用の進捗だけ更新
           };
 
-          if (achievement === 100 && cell.achievement < 100 && cell.title) {
+          // ★ ここで status を見て、PL 側ですでに achieved になっているときだけ
+          //    ポップアップを出す（任意。不要ならここごと消してもOK）
+          if (
+            cell.status !== "achieved" && // いままで未達だったのが
+            newCell.achievement === 100 && // マンダラ進捗的にも 100% になり
+            cell.title
+          ) {
             setAchievementPopup({
               isOpen: true,
               goalTitle: cell.title,
@@ -543,27 +561,27 @@ const MandalaChart: React.FC = () => {
           {viewLevel === "middle" && (
             <button
               onClick={handleBackToMajor}
-              className="flex items-center space-x-2 px-4 py-2 bg-background hover:bg-gray-100 rounded-card transition-colors"
+              className="flex items-center space-x-2 px-4 py-2 bg-background hover:bg-gray-50 rounded-card transition-colors text-body"
             >
               <ChevronLeft className="w-5 h-5" />
-              <span className="text-body font-medium">大目標に戻る</span>
+              <span className="font-medium">大目標に戻る</span>
             </button>
           )}
           {viewLevel === "minor" && (
             <>
               <button
                 onClick={handleBackToMajor}
-                className="flex items-center space-x-2 px-4 py-2 bg-background hover:bg-gray-100 rounded-card transition-colors"
+                className="flex items-center space-x-2 px-4 py-2 bg-background hover:bg-gray-50 rounded-card transition-colors text-body"
               >
                 <ArrowLeft className="w-5 h-5" />
-                <span className="text-body font-medium">大目標</span>
+                <span className="font-medium">大目標</span>
               </button>
               <button
                 onClick={handleBackToMiddle}
-                className="flex items-center space-x-2 px-4 py-2 bg-primary/10 hover:bg-primary/20 text-primary rounded-card transition-colors"
+                className="flex items-center space-x-2 px-4 py-2 bg-primary/10 hover:bg-primary/20 text-primary rounded-card transition-colors text-body"
               >
                 <ChevronLeft className="w-5 h-5" />
-                <span className="text-body font-medium">中目標に戻る</span>
+                <span className="font-medium">中目標に戻る</span>
               </button>
             </>
           )}
@@ -572,29 +590,14 @@ const MandalaChart: React.FC = () => {
     );
   };
 
-  const MAX_CHARS_INPUT = 22;
-  const LINE_WIDTH = 8;
-  const MAX_LINES = 3;
+  const MAX_CHARS = 22;
 
-  const formatText = (text: string): string => {
-    const clean = text.replace(/\n/g, "");
-    const limited = clean.slice(0, MAX_CHARS_INPUT);
-
-    const parts: string[] = [];
-    for (let i = 0; i < limited.length; i += LINE_WIDTH) {
-      parts.push(limited.slice(i, i + LINE_WIDTH));
-    }
-
-    return parts.slice(0, MAX_LINES).join("\n");
-  };
-
-  // 🎨 大目標ビュー：色とフォントを統一
   const renderMajorView = () => {
     const gridOrder = [0, 1, 2, 3, null, 4, 5, 6, 7];
 
     return (
       <div className="space-y-8">
-        <div className="flex justify-center items-start gap-8">
+        <div className="flex flex-col lg:flex-row justify-center items-start gap-8">
           <div className="grid grid-cols-3 gap-4 w-full max-w-4xl mx-auto">
             {gridOrder.map((cellIndex) => {
               if (cellIndex === null) {
@@ -604,30 +607,21 @@ const MandalaChart: React.FC = () => {
                     className="aspect-square border-2 border-primary bg-primary/5 rounded-card-lg p-4 flex flex-col items-center justify-center"
                   >
                     <div className="text-center w-full">
-                      <p className="text-note text-primary text-15px font-bold mb-2">
+                      <p className="text-note text-primary font-bold mb-2">
                         私が叶える最終目標
                       </p>
                       <textarea
                         value={centerGoal}
-                        onChange={(e) => {
-                          const v = e.target.value;
-                          if (isComposing) {
-                            setCenterGoal(v);
-                          } else {
-                            setCenterGoal(formatText(v));
-                          }
-                        }}
-                        onCompositionStart={() => setIsComposing(true)}
-                        onCompositionEnd={(e) => {
-                          setIsComposing(false);
-                          setCenterGoal(formatText(e.currentTarget.value));
-                        }}
+                        onChange={(e) =>
+                          setCenterGoal(e.target.value.slice(0, MAX_CHARS))
+                        }
                         className="w-full bg-transparent border-none text-body font-bold text-primary text-center focus:outline-none resize-none"
                         placeholder="最終目標を入力"
                         rows={3}
+                        maxLength={MAX_CHARS}
                         style={{
                           whiteSpace: "pre-wrap",
-                          lineHeight: "1.3",
+                          lineHeight: "1.1",
                         }}
                       />
                     </div>
@@ -638,6 +632,17 @@ const MandalaChart: React.FC = () => {
               const cell = majorCells[cellIndex];
               const ringRatios = getMajorRingRatios(cell.id);
 
+              // 🔽 追加：中目標のマンダラが全部達成しているか？
+              // ringRatios は各中目標ごとの「小目標達成率」(0〜1)
+              // ここでは「全部 1.0 (100%)」ならマンダラ達成とみなす
+              const mandalaCompleted =
+                ringRatios.length > 0 && ringRatios.every((r) => r >= 1);
+              console.log("mandalaCompleted", mandalaCompleted);
+
+              // 🔽 追加：「PL達成 ＋ マンダラ達成」のときだけ “真の達成”
+              const isFullyCompleted =
+                cell.status === "achieved" && mandalaCompleted;
+              console.log("isFullyCompleted", isFullyCompleted);
               return (
                 <MandalaCellFrame key={cell.id} status={cell.status}>
                   <div className="flex flex-col items-center h-full">
@@ -645,20 +650,18 @@ const MandalaChart: React.FC = () => {
                       大目標 {cellIndex + 1}
                     </p>
 
-                    <div
-                      className="relative w-full"
-                      style={{ height: "220px" }}
-                    >
+                    <div className="relative w-full flex-1 min-h-0">
                       {cell.title && (
                         <>
-                          {cell.status === "achieved" ? (
+                          {isFullyCompleted ? (
+                            // ✅ 数字もマンダラも両方達成 → ピンクアイコン表示
                             <img
                               src={complate_icon}
                               alt="達成リング"
-                              className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none"
-                              style={{ width: 190, height: 190 }}
+                              className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none w-[190px] h-[190px]"
                             />
                           ) : ringRatios.some((r) => r > 0) ? (
+                            // ✅ それ以外（数字だけ達成 / マンダラだけ / 途中）は緑リング
                             <MajorRingProgress
                               ringRatios={ringRatios}
                               size={190}
@@ -667,53 +670,33 @@ const MandalaChart: React.FC = () => {
                         </>
                       )}
 
+                      {/* 目標タイトル入力エリアはそのまま */}
                       <div className="absolute inset-0 flex items-center justify-center">
                         <textarea
-                          value={cell.title}
+                          value={formatTitleWithLineBreaks(cell.title)}
                           onChange={(e) => {
-                            const v = e.target.value;
-                            if (isComposing) {
-                              setMajorCells((prev) =>
-                                prev.map((c) =>
-                                  c.id === cell.id ? { ...c, title: v } : c
-                                )
-                              );
-                            } else {
-                              const formatted = formatText(v);
-                              setMajorCells((prev) =>
-                                prev.map((c) =>
-                                  c.id === cell.id
-                                    ? { ...c, title: formatted }
-                                    : c
-                                )
-                              );
-                            }
-                          }}
-                          onCompositionStart={() => setIsComposing(true)}
-                          onCompositionEnd={(e) => {
-                            setIsComposing(false);
-                            const formatted = formatText(e.currentTarget.value);
+                            const raw = removeLineBreaks(e.target.value);
+                            const newValue = raw.slice(0, MAX_CHARS);
                             setMajorCells((prev) =>
                               prev.map((c) =>
-                                c.id === cell.id
-                                  ? { ...c, title: formatted }
-                                  : c
+                                c.id === cell.id ? { ...c, title: newValue } : c
                               )
                             );
                           }}
                           className={`bg-transparent border-none text-body text-center focus:outline-none focus:ring-0 focus:border-transparent resize-none
-                            ${
-                              cell.status === "achieved"
-                                ? "text-achieved"
-                                : "text-primary"
-                            }`}
+${cell.status === "achieved" ? "text-achieved" : "text-primary"}`}
                           style={{
                             width: "90%",
-                            lineHeight: "1.3",
+                            lineHeight: "1.1",
                             whiteSpace: "pre-wrap",
                           }}
                           rows={3}
-                          placeholder="ここに22文字まで目標のテキストが入ります。"
+                          maxLength={MAX_CHARS + 5}
+                          placeholder={
+                            "ここに22文字まで目標の" +
+                            "\n" +
+                            "テキストが入ります。"
+                          }
                         />
                       </div>
                     </div>
@@ -732,7 +715,7 @@ const MandalaChart: React.FC = () => {
             })}
           </div>
 
-          <div className="flex-shrink-0">
+          <div className="hidden lg:flex flex-shrink-0">
             <LevelIndicator />
           </div>
         </div>
@@ -740,7 +723,6 @@ const MandalaChart: React.FC = () => {
     );
   };
 
-  // 🎨 中目標ビュー：色とフォントを統一
   const renderMiddleView = () => {
     if (!selectedMajorCellId || !middleCharts[selectedMajorCellId]) {
       return <div className="text-body text-text">データが見つかりません</div>;
@@ -749,7 +731,6 @@ const MandalaChart: React.FC = () => {
     const majorCell = majorCells.find((c) => c.id === selectedMajorCellId)!;
     const middleChart = middleCharts[selectedMajorCellId];
 
-    // ★ 追加：大目標が何番かを計算
     const majorCellIndex = majorCells.findIndex(
       (c) => c.id === selectedMajorCellId
     );
@@ -759,7 +740,7 @@ const MandalaChart: React.FC = () => {
 
     return (
       <div className="space-y-6">
-        <div className="flex justify-center items-start gap-8">
+        <div className="flex flex-col lg:flex-row justify-center items-start gap-8">
           <div className="grid grid-cols-3 gap-4 w-full max-w-4xl mx-auto">
             {gridOrder.map((cellIndex) => {
               if (cellIndex === null) {
@@ -769,7 +750,6 @@ const MandalaChart: React.FC = () => {
                     className="aspect-square border-2 border-primary bg-primary/5 rounded-card-lg p-4 flex flex-col items-center justify-center"
                   >
                     <div className="text-center w-full">
-                      {/* ★ ここを書き換え */}
                       <p className="text-note text-primary font-bold mb-1">
                         {majorNumber ? `大目標 ${majorNumber}` : "大目標"}
                       </p>
@@ -777,7 +757,7 @@ const MandalaChart: React.FC = () => {
                         className="text-body font-bold text-primary"
                         style={{
                           whiteSpace: "pre-wrap",
-                          lineHeight: "1.3",
+                          lineHeight: "1.1",
                         }}
                       >
                         {majorCell.title}
@@ -790,122 +770,97 @@ const MandalaChart: React.FC = () => {
               const cell = middleChart.cells[cellIndex];
               const progress = getMiddleCellProgress(cell.id);
 
+              // ✅ 下階層マンダラの達成状況（小目標10個チェックで true）
+              const mandalaCompleted = progress.isCompleted;
+
+              // ✅ 「数字も達成 ＋ マンダラも達成」のときだけ “真の達成”
+              const isFullyCompleted =
+                mandalaCompleted && cell.status === "achieved";
+
               return (
                 <MandalaCellFrame key={cell.id} status={cell.status}>
-                  <div className="relative h-full">
-                    <div className="relative z-10 text-center flex-1 flex flex-col">
-                      <p className="text-note text-text/70 font-semibold mb-2">
-                        中目標 {cellIndex + 1}
-                      </p>
-                      <div
-                        className="relative w-full"
-                        style={{ height: "180px" }}
-                      >
-                        {cell.title && (
-                          <>
-                            {progress.isCompleted ? (
-                              <img
-                                src={complate_icon}
-                                alt="達成リング"
-                                className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none"
-                                style={{ width: 190, height: 190 }}
-                              />
-                            ) : (
-                              <MultiRingProgress
-                                totalRings={progress.totalRings}
-                                filledRings={progress.filledRings}
-                                isCompleted={progress.isCompleted}
-                                size={190}
-                              />
-                            )}
-                          </>
-                        )}
+                  <div className="relative z-10 text-center flex flex-col h-full">
+                    <p className="text-note text-text/70 font-semibold mb-2">
+                      中目標 {cellIndex + 1}
+                    </p>
 
-                        <div className="absolute inset-0 flex items-center justify-center">
-                          <textarea
-                            value={cell.title}
-                            onChange={(e) => {
-                              const v = e.target.value;
-                              if (isComposing) {
-                                setMiddleCharts((prev) => ({
-                                  ...prev,
-                                  [selectedMajorCellId]: {
-                                    ...prev[selectedMajorCellId],
-                                    cells: prev[selectedMajorCellId].cells.map(
-                                      (c) =>
-                                        c.id === cell.id
-                                          ? { ...c, title: v }
-                                          : c
-                                    ),
-                                  },
-                                }));
-                              } else {
-                                const formatted = formatText(v);
-                                setMiddleCharts((prev) => ({
-                                  ...prev,
-                                  [selectedMajorCellId]: {
-                                    ...prev[selectedMajorCellId],
-                                    cells: prev[selectedMajorCellId].cells.map(
-                                      (c) =>
-                                        c.id === cell.id
-                                          ? { ...c, title: formatted }
-                                          : c
-                                    ),
-                                  },
-                                }));
-                              }
-                            }}
-                            onCompositionStart={() => setIsComposing(true)}
-                            onCompositionEnd={(e) => {
-                              setIsComposing(false);
-                              const formatted = formatText(
-                                e.currentTarget.value
-                              );
-                              setMiddleCharts((prev) => ({
-                                ...prev,
-                                [selectedMajorCellId]: {
-                                  ...prev[selectedMajorCellId],
-                                  cells: prev[selectedMajorCellId].cells.map(
-                                    (c) =>
-                                      c.id === cell.id
-                                        ? { ...c, title: formatted }
-                                        : c
-                                  ),
-                                },
-                              }));
-                            }}
-                            className={`bg-transparent border-none text-body text-center focus:outline-none focus:ring-0 focus:border-transparent resize-none
-                              ${
-                                cell.status === "achieved"
-                                  ? "text-achieved"
-                                  : "text-primary"
-                              }`}
-                            style={{
-                              width: "85%",
-                              lineHeight: "1.3",
-                              whiteSpace: "pre-wrap",
-                            }}
-                            rows={3}
-                            placeholder="ここに22文字まで目標のテキストが入ります。"
-                          />
-                        </div>
-                      </div>
+                    <div className="relative w-full flex-1 min-h-0">
                       {cell.title && (
-                        <button
-                          onClick={() => handleMiddleCellClick(cell.id)}
-                          className="mt-2 text-note text-primary hover:text-primary/80 font-semibold bg-white/80 rounded px-2 py-1"
-                        >
-                          小目標を設定 →
-                        </button>
+                        <>
+                          {isFullyCompleted ? (
+                            // ✅ 両方達成したときだけ「ピンクの達成アイコン」を表示
+                            <img
+                              src={complate_icon}
+                              alt="達成リング"
+                              className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none w-[190px] h-[190px]"
+                            />
+                          ) : progress.totalRings > 0 ? (
+                            // ✅ それ以外のときは「緑リング」で進捗表示
+                            <MultiRingProgress
+                              totalRings={progress.totalRings}
+                              filledRings={progress.filledRings}
+                              // 数字達成だけではピンクにならないように false 固定
+                              isCompleted={false}
+                              size={190}
+                            />
+                          ) : null}
+                        </>
                       )}
+
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <textarea
+                          value={formatTitleWithLineBreaks(cell.title)}
+                          onChange={(e) => {
+                            const raw = removeLineBreaks(e.target.value);
+                            const newValue = raw.slice(0, MAX_CHARS);
+                            const plMetric = detectPlMetricFromTitle(newValue);
+
+                            setMiddleCharts((prev) => ({
+                              ...prev,
+                              [selectedMajorCellId]: {
+                                ...prev[selectedMajorCellId],
+                                cells: prev[selectedMajorCellId].cells.map(
+                                  (c) =>
+                                    c.id === cell.id
+                                      ? { ...c, title: newValue, plMetric }
+                                      : c
+                                ),
+                              },
+                            }));
+                          }}
+                          className={`bg-transparent border-none text-body text-center focus:outline-none focus:ring-0 focus:border-transparent resize-none
+${cell.status === "achieved" ? "text-achieved" : "text-primary"}`}
+                          style={{
+                            width: "85%",
+                            lineHeight: "1.1",
+                            whiteSpace: "pre-wrap",
+                          }}
+                          rows={3}
+                          maxLength={MAX_CHARS + 5}
+                          placeholder={
+                            "ここに22文字まで目標の" +
+                            "\n" +
+                            "テキストが入ります。"
+                          }
+                        />
+                      </div>
                     </div>
+
+                    {cell.title && (
+                      <button
+                        onClick={() => handleMiddleCellClick(cell.id)}
+                        className="mt-2 text-note text-primary hover:text-primary/80 font-semibold bg-white/80 rounded px-3 py-2"
+                      >
+                        小目標を設定 →
+                      </button>
+                    )}
                   </div>
                 </MandalaCellFrame>
               );
             })}
           </div>
 
-          <div className="flex-shrink-0">
+          <div className="hidden lg:flex flex-shrink-0">
             <LevelIndicator />
           </div>
         </div>
@@ -913,9 +868,7 @@ const MandalaChart: React.FC = () => {
     );
   };
 
-  // 🎨 小目標ビュー：色とフォントを統一
   const renderMinorView = () => {
-    // 必要なデータが揃っているかチェック
     if (
       !selectedMiddleCellId ||
       !minorCharts[selectedMiddleCellId] ||
@@ -928,7 +881,6 @@ const MandalaChart: React.FC = () => {
     const minorChart = minorCharts[selectedMiddleCellId];
     const middleChartOfSelectedMajor = middleCharts[selectedMajorCellId];
 
-    // ★ 該当の中目標を「選択中の大目標」の中から探す
     const middleCellIndex = middleChartOfSelectedMajor.cells.findIndex(
       (c) => c.id === selectedMiddleCellId
     );
@@ -938,10 +890,9 @@ const MandalaChart: React.FC = () => {
         : null;
 
     return (
-      <div className="flex justify-center items-start gap-8">
-        <div className="max-w-xl flex-1 space-y-6">
+      <div className="flex flex-col lg:flex-row justify-center items-start gap-8">
+        <div className="max-w-xl flex-1 space-y-6 w-full">
           <div className="w-full">
-            {/* ★ ここで該当する中目標を明示 */}
             {middleCell && (
               <p className="text-note text-text/70 mb-1 text-center">
                 中目標 {middleCellIndex + 1}
@@ -953,7 +904,7 @@ const MandalaChart: React.FC = () => {
                 className="text-body font-bold text-primary text-center"
                 style={{
                   whiteSpace: "pre-wrap",
-                  lineHeight: "1.3",
+                  lineHeight: "1.1",
                 }}
               >
                 {middleCell?.title ||
@@ -986,19 +937,18 @@ const MandalaChart: React.FC = () => {
                   {cell.isChecked && <Check className="w-5 h-5 text-white" />}
                 </button>
 
-                <div className="flex-1">
+                <div className="flex-1 min-w-0">
                   <input
                     type="text"
                     value={cell.title}
                     onChange={(e) => {
+                      const newValue = e.target.value.slice(0, MAX_CHARS);
                       setMinorCharts({
                         ...minorCharts,
                         [selectedMiddleCellId]: {
                           ...minorChart,
                           cells: minorChart.cells.map((c) =>
-                            c.id === cell.id
-                              ? { ...c, title: e.target.value.slice(0, 22) }
-                              : c
+                            c.id === cell.id ? { ...c, title: newValue } : c
                           ),
                         },
                       });
@@ -1008,7 +958,10 @@ const MandalaChart: React.FC = () => {
                         ? "line-through text-text/40"
                         : "text-primary"
                     }`}
-                    placeholder="ここに22文字まで目標のテキストが入ります。"
+                    maxLength={MAX_CHARS}
+                    placeholder={
+                      "ここに22文字まで目標の" + "\n" + "テキストが入ります。"
+                    }
                   />
                 </div>
               </div>
@@ -1016,7 +969,7 @@ const MandalaChart: React.FC = () => {
           </div>
         </div>
 
-        <div className="flex-shrink-0">
+        <div className="hidden lg:flex flex-shrink-0">
           <LevelIndicator />
         </div>
       </div>
@@ -1024,7 +977,7 @@ const MandalaChart: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background px-2 py-3 md:px-3 md:py-4">
+    <div className="min-h-screen bg-background px-3 py-4">
       <div className="w-full max-w-6xl mx-auto space-y-4">
         <NavigationBar />
         {viewLevel === "major" && renderMajorView()}

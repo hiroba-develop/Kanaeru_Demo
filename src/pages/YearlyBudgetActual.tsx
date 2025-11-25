@@ -10,7 +10,12 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { useAuth } from "../contexts/AuthContext";
-import { onYearlyActualUpdate } from "../utils/mandalaIntegration";
+import {
+  onYearlyActualUpdate,
+  loadPlPlan,
+  loadPlActual,
+  savePlActual,
+} from "../utils/mandalaIntegration";
 
 interface YearlyData {
   year: number;
@@ -199,12 +204,26 @@ const getDemoDataForUser = (userId: string | undefined) => {
 
 type EditableField =
   | "revenueTarget"
+  | "revenueActual"
   | "grossProfitTarget"
+  | "grossProfitActual"
   | "operatingProfitTarget"
-  | "netWorthTarget";
+  | "operatingProfitActual"
+  | "netWorthTarget"
+  | "netWorthActual";
 
-// ★ Aパターン：yearごとに変更を保持
+// yearごとに変更を保持
 type PendingEdits = Record<number, Partial<YearlyData>>;
+
+// ★ 直近の実績が入っている年の純資産を取得するヘルパー
+const getLatestNetWorthActual = (list: YearlyData[]): number => {
+  const withActual = list
+    .filter((y) => y.netWorthActual > 0)
+    .sort((a, b) => b.year - a.year); // year の大きい順
+
+  if (withActual.length === 0) return 0;
+  return withActual[0].netWorthActual;
+};
 
 const YearlyBudgetActual: React.FC = () => {
   const { selectedUser } = useAuth();
@@ -221,12 +240,11 @@ const YearlyBudgetActual: React.FC = () => {
   const [tableViewPeriod, setTableViewPeriod] = useState<"1-5" | "6-10">("1-5");
   const [editingCell, setEditingCell] = useState<string | null>(null);
 
-  // ★ Aパターンの pendingEdits
   const [pendingEdits, setPendingEdits] = useState<PendingEdits>({});
 
-  // デモデータロード
+  // データロード
   useEffect(() => {
-    const loadDemoData = async () => {
+    const loadData = async () => {
       if (!selectedUser) {
         setIsLoading(false);
         return;
@@ -234,9 +252,50 @@ const YearlyBudgetActual: React.FC = () => {
       try {
         setIsLoading(true);
         await new Promise((resolve) => setTimeout(resolve, 500));
-        const data = getDemoDataForUser(selectedUser.id);
-        setTargets(JSON.parse(JSON.stringify(data.yearlyTargets)));
-        setTenYearData(data.tenYearData);
+
+        // pl_plan_v1（目標値）を読み込み
+        const plPlan = loadPlPlan();
+        // pl_actual_v1（実績値）を読み込み
+        const plActual = loadPlActual();
+
+        if (plPlan) {
+          // マンダラ連動のPL計画が存在する場合
+          const yearlyTargets: YearlyData[] = plPlan.yearly.map((y) => {
+            const actualData = plActual?.yearly.find((a) => a.year === y.year);
+
+            return {
+              year: y.year,
+              revenueTarget: y.revenueTarget,
+              revenueActual: actualData?.revenueActual || 0,
+              grossProfitTarget: y.grossProfitTarget,
+              grossProfitActual: actualData?.grossProfitActual || 0,
+              operatingProfitTarget: y.operatingProfitTarget,
+              operatingProfitActual: actualData?.operatingProfitActual || 0,
+              netWorthTarget: y.netWorthTarget,
+              netWorthActual: actualData?.netWorthActual || 0,
+              phase: y.year <= 3 ? "創業期" : y.year <= 5 ? "転換期" : "成長期",
+            };
+          });
+
+          setTargets(yearlyTargets);
+
+          // 初回ロード時にも一度 10年目標進捗を計算しておく
+          const tenYearTarget = plPlan.tenYearTargetNetWorth;
+          const latestActual = getLatestNetWorthActual(yearlyTargets);
+          const progress =
+            tenYearTarget > 0 ? (latestActual / tenYearTarget) * 100 : 0;
+
+          setTenYearData({
+            target: Math.round(tenYearTarget / 10000),
+            actual: Math.round(latestActual / 10000),
+            progress,
+          });
+        } else {
+          // マンダラ連動が無い場合はデモデータ
+          const data = getDemoDataForUser(selectedUser.id);
+          setTargets(JSON.parse(JSON.stringify(data.yearlyTargets)));
+          setTenYearData(data.tenYearData);
+        }
       } catch (err) {
         setError("データの読み込みに失敗しました");
       } finally {
@@ -244,10 +303,27 @@ const YearlyBudgetActual: React.FC = () => {
       }
     };
 
-    loadDemoData();
+    loadData();
   }, [selectedUser]);
 
-  // ★ Aパターン：yearごとにフィールドを積み上げる
+  // ★ targets が変わるたびに 10年目標進捗を再計算
+  useEffect(() => {
+    const plPlan = loadPlPlan();
+    if (!plPlan) return;
+
+    const tenYearTarget = plPlan.tenYearTargetNetWorth;
+    const latestActual = getLatestNetWorthActual(targets);
+    const progress =
+      tenYearTarget > 0 ? (latestActual / tenYearTarget) * 100 : 0;
+
+    setTenYearData({
+      target: Math.round(tenYearTarget / 10000),
+      actual: Math.round(latestActual / 10000),
+      progress,
+    });
+  }, [targets]);
+
+  // セル更新
   const handleCellUpdate = (
     year: number,
     field: EditableField,
@@ -267,7 +343,7 @@ const YearlyBudgetActual: React.FC = () => {
         target.year === year ? { ...target, [field]: value } : target
       )
     );
-    // const key = `${year}-${field}`;
+
     setEditingCell(null);
   };
 
@@ -282,49 +358,77 @@ const YearlyBudgetActual: React.FC = () => {
 
   const handleSave = async () => {
     if (!hasChanges()) {
-      alert("目標が変更されていません");
+      alert("変更がありません");
       return;
     }
 
     try {
       setIsSaving(true);
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
+      // 既存の実績データを読み込む
+      let plActual = loadPlActual();
+      if (!plActual) {
+        plActual = { yearly: [] };
+      }
 
       let mandalaUpdated = false;
 
-      targets.forEach((data) => {
-        const edits = pendingEdits[data.year] || {};
+      // pendingEditsを反映
+      Object.entries(pendingEdits).forEach(([yearStr, edits]) => {
+        const year = parseInt(yearStr, 10);
+        const currentData = targets.find((t) => t.year === year);
+        if (!currentData) return;
 
-        // ★ 実績が更新されるケースがあればここで連動（現状はターゲットのみなのでほぼ動かない想定）
-        if (
-          (edits as any).revenueActual ||
-          (edits as any).grossProfitActual ||
-          (edits as any).operatingProfitActual
-        ) {
-          const updated = onYearlyActualUpdate(data.year, {
-            revenueActual: (edits as any).revenueActual || data.revenueActual,
-            grossProfitActual:
-              (edits as any).grossProfitActual || data.grossProfitActual,
-            operatingProfitActual:
-              (edits as any).operatingProfitActual ||
-              data.operatingProfitActual,
-          });
-          if (updated) mandalaUpdated = true;
+        const updatedActual = {
+          year,
+          revenueActual: edits.revenueActual ?? currentData.revenueActual,
+          grossProfitActual:
+            edits.grossProfitActual ?? currentData.grossProfitActual,
+          operatingProfitActual:
+            edits.operatingProfitActual ?? currentData.operatingProfitActual,
+          netWorthActual: edits.netWorthActual ?? currentData.netWorthActual,
+        };
+
+        // pl_actual_v1に保存
+        const existingIndex = plActual!.yearly.findIndex(
+          (a) => a.year === year
+        );
+        if (existingIndex >= 0) {
+          plActual!.yearly[existingIndex] = updatedActual;
+        } else {
+          plActual!.yearly.push(updatedActual);
+        }
+
+        // 実績フィールドが編集されている場合のみマンダラ連動
+        const hasActualEdit =
+          edits.revenueActual !== undefined ||
+          edits.grossProfitActual !== undefined ||
+          edits.operatingProfitActual !== undefined ||
+          edits.netWorthActual !== undefined;
+
+        if (hasActualEdit) {
+          onYearlyActualUpdate(year, updatedActual);
+          mandalaUpdated = true;
         }
       });
 
+      // localStorageに保存
+      savePlActual(plActual);
+
+      // pendingEditsをクリア
       setPendingEdits({});
 
       if (mandalaUpdated) {
         alert(
-          "目標が正常に保存されました (デモモード)\n\n✨ マンダラチャートの小目標も自動更新されました！"
+          "保存しました！\n\n✨ マンダラチャートの目標も自動更新されました!"
         );
       } else {
-        alert("目標が正常に保存されました (デモモード)");
+        alert("保存しました！");
       }
     } catch (err) {
-      console.error("デモ目標保存エラー:", err);
-      alert("目標の保存に失敗しました");
+      console.error("保存エラー:", err);
+      alert("保存に失敗しました");
     } finally {
       setIsSaving(false);
     }
@@ -332,24 +436,28 @@ const YearlyBudgetActual: React.FC = () => {
 
   // 10年進捗アニメーション
   useEffect(() => {
-    const targetTenYearProgress = tenYearData.progress;
+    const target = Math.max(0, Math.min(100, tenYearData.progress || 0));
 
-    const tenYearTimer = setTimeout(() => {
-      let progress = 0;
-      const tenYearInterval = setInterval(() => {
-        progress += 0.5;
-        setTenYearProgress(progress);
-        if (progress >= targetTenYearProgress) {
-          clearInterval(tenYearInterval);
-          if (targetTenYearProgress === 0) {
-            setTenYearProgress(0);
-          }
-        }
-      }, 40);
-    }, 800);
+    // いったん 0 にリセット
+    setTenYearProgress(0);
+
+    // 0% の場合はアニメーション無しで終わり
+    if (target === 0) {
+      return;
+    }
+
+    let progress = 0;
+    const interval = setInterval(() => {
+      progress += 0.5;
+      if (progress >= target) {
+        progress = target;
+        clearInterval(interval);
+      }
+      setTenYearProgress(progress);
+    }, 40);
 
     return () => {
-      clearTimeout(tenYearTimer);
+      clearInterval(interval);
     };
   }, [tenYearData.progress]);
 
@@ -366,10 +474,9 @@ const YearlyBudgetActual: React.FC = () => {
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-sm text-text/70">
+          <p className="text-body text-text/70">
             {selectedUser?.name} さんのデータを読み込み中...
           </p>
-          <p className="text-xs text-blue-600 mt-2">(デモモード)</p>
         </div>
       </div>
     );
@@ -379,7 +486,7 @@ const YearlyBudgetActual: React.FC = () => {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
-          <p className="text-sm text-red-500 mb-4">{error}</p>
+          <p className="text-body text-error mb-4">{error}</p>
           <button
             onClick={() => window.location.reload()}
             className="btn-primary"
@@ -399,7 +506,6 @@ const YearlyBudgetActual: React.FC = () => {
     const key = `${data.year}-${field}`;
     const displayValue = data[field as EditableField] as number;
 
-    // ★ このセルが pendingEdits に含まれているかどうか
     const hasEditForCell =
       !!pendingEdits[data.year] &&
       (pendingEdits[data.year] as any)[field] !== undefined;
@@ -408,8 +514,10 @@ const YearlyBudgetActual: React.FC = () => {
       <td
         key={data.year}
         className={`py-2 sm:py-3 px-1 sm:px-2 text-right ${
-          isEditable ? "cursor-pointer hover:bg-blue-50 transition-colors" : ""
-        } ${isEditable && hasEditForCell ? "bg-yellow-100" : ""}`}
+          isEditable
+            ? "cursor-pointer hover:bg-primary/5 transition-colors"
+            : ""
+        } ${isEditable && hasEditForCell ? "bg-warning/10" : ""}`}
         onDoubleClick={() =>
           isEditable && handleCellDoubleClick(data.year, field as EditableField)
         }
@@ -502,14 +610,16 @@ const YearlyBudgetActual: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center space-x-3">
           <Navigation className="h-6 w-6 sm:h-8 sm:w-8 text-primary" />
-          <h1 className="text-2xl font-bold text-text">年次PL</h1>
+          <h1 className="text-heading font-bold text-text">年次PL</h1>
         </div>
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         {/* 10年進捗 */}
         <div className="card">
-          <h3 className="text-lg font-semibold text-text mb-4">10年目標進捗</h3>
+          <h3 className="text-body font-semibold text-text mb-4">
+            10年目標進捗
+          </h3>
           <div className="flex justify-center">
             <div>
               <div className="w-full h-64 flex items-center justify-center">
@@ -542,12 +652,12 @@ const YearlyBudgetActual: React.FC = () => {
                   </svg>
                   <div className="absolute inset-0 flex items-center justify-center">
                     <div className="text-center">
-                      <div className="text-3xl font-bold text-primary">
+                      <div className="text-heading font-bold text-primary">
                         {tenYearProgress === 0
                           ? "0.0%"
                           : `${tenYearProgress.toFixed(1)}%`}
                       </div>
-                      <div className="text-sm" style={{ color: "#1E1F1F" }}>
+                      <div className="text-body" style={{ color: "#1E1F1F" }}>
                         10年進捗
                       </div>
                     </div>
@@ -555,7 +665,7 @@ const YearlyBudgetActual: React.FC = () => {
                 </div>
               </div>
               <div className="text-center">
-                <p className="text-xs text-text/70">
+                <p className="text-note text-text/70">
                   {tenYearData.actual}万 / {tenYearData.target}万
                 </p>
               </div>
@@ -565,18 +675,18 @@ const YearlyBudgetActual: React.FC = () => {
           <div className="flex justify-center mt-4 space-x-4">
             <div className="flex items-center space-x-2">
               <div className="w-3 h-3 bg-primary rounded-full"></div>
-              <span className="text-xs text-text/70">達成</span>
+              <span className="text-note text-text/70">達成</span>
             </div>
             <div className="flex items-center space-x-2">
               <div className="w-3 h-3 bg-gray-300 rounded-full"></div>
-              <span className="text-xs text-text/70">未達成</span>
+              <span className="text-note text-text/70">未達成</span>
             </div>
           </div>
         </div>
 
         {/* 純資産推移予測 */}
         <div className="card">
-          <h3 className="text-lg font-semibold text-text mb-4">
+          <h3 className="text-body font-semibold text-text mb-4">
             純資産推移予測
           </h3>
           <ResponsiveContainer width="100%" height={320}>
@@ -604,9 +714,9 @@ const YearlyBudgetActual: React.FC = () => {
               <Line
                 type="monotone"
                 dataKey="netWorthTarget"
-                stroke="#4B5563"
+                stroke="#E0E0E0"
                 strokeWidth={3}
-                dot={{ fill: "#4B5563", strokeWidth: 2, r: 4 }}
+                dot={{ fill: "#E0E0E0", strokeWidth: 2, r: 4 }}
                 name="純資産目標"
               />
               {/* 実績（グリーン） */}
@@ -627,10 +737,10 @@ const YearlyBudgetActual: React.FC = () => {
       <div className="card">
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-4">
           <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
-            <h3 className="text-lg font-semibold text-text">
+            <h3 className="text-body font-semibold text-text">
               10年間の目標設定
             </h3>
-            <div className="text-xs text-text/70">
+            <div className="text-note text-text/70">
               💡 各種目標はダブルクリックで編集できます
             </div>
           </div>
@@ -640,7 +750,7 @@ const YearlyBudgetActual: React.FC = () => {
               onChange={(e) =>
                 setTableViewPeriod(e.target.value as "1-5" | "6-10")
               }
-              className="text-sm border border-border rounded px-2 py-1 pr-8 appearance-none bg-white"
+              className="text-body border border-border rounded px-2 py-1 pr-8 appearance-none bg-background"
               style={{
                 backgroundImage:
                   'url(\'data:image/svg+xml;utf8,<svg fill="black" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/><path d="M0 0h24v24H0z" fill="none"/></svg>\')',
@@ -669,7 +779,7 @@ const YearlyBudgetActual: React.FC = () => {
         )}
 
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="w-full text-body">
             <thead>
               <tr className="border-b border-border">
                 <th className="text-left py-2 sm:py-3 px-1 sm:px-2 font-medium w-24"></th>
@@ -715,7 +825,7 @@ const YearlyBudgetActual: React.FC = () => {
                       renderDataCell(
                         data,
                         item.actualField as keyof YearlyData,
-                        false
+                        true
                       )
                     )}
                   </tr>
