@@ -925,7 +925,7 @@ const MandalaChart: React.FC = () => {
                     {cell.title && (
                       <button
                         onClick={() => handleMiddleCellClick(cell.id)}
-                        className="mt-2 text-note text-primary hover:text-primary/80 font-semibold bg-white/80 rounded px-3 py-2"
+                        className="inline-flex items-center self-center mt-2 text-note text-primary hover:text-primary/80 font-semibold bg-white/80 rounded px-2 py-1 w-auto"
                       >
                         小目標を設定 →
                       </button>

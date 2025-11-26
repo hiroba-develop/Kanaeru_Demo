@@ -39,11 +39,6 @@ interface YearlyData {
 const DEMO_ROADMAP_DATA = {
   fiscalYearStartMonth: 4,
   fiscalYearStartYear: 2023,
-  tenYearData: {
-    target: 5000, // 万円
-    actual: 500, // 万円
-    progress: 10.0, // %
-  },
   yearlyTargets: [
     {
       year: 1,
@@ -172,7 +167,6 @@ const DEMO_ROADMAP_DATA = {
 const getDemoDataForUser = (userId: string | undefined) => {
   if (!userId) {
     return {
-      tenYearData: { target: 0, actual: 0, progress: 0 },
       yearlyTargets: [],
     };
   }
@@ -190,14 +184,7 @@ const getDemoDataForUser = (userId: string | undefined) => {
     netWorthActual: Math.round(target.netWorthActual * multiplier),
   }));
 
-  const userTenYearData = {
-    ...DEMO_ROADMAP_DATA.tenYearData,
-    actual: Math.round(DEMO_ROADMAP_DATA.tenYearData.actual * multiplier),
-    progress: DEMO_ROADMAP_DATA.tenYearData.progress * multiplier,
-  };
-
   return {
-    tenYearData: userTenYearData,
     yearlyTargets: userYearlyTargets,
   };
 };
@@ -215,26 +202,13 @@ type EditableField =
 // yearごとに変更を保持
 type PendingEdits = Record<number, Partial<YearlyData>>;
 
-// ★ 直近の実績が入っている年の純資産を取得するヘルパー
-const getLatestNetWorthActual = (list: YearlyData[]): number => {
-  const withActual = list
-    .filter((y) => y.netWorthActual > 0)
-    .sort((a, b) => b.year - a.year); // year の大きい順
-
-  if (withActual.length === 0) return 0;
-  return withActual[0].netWorthActual;
-};
-
 const YearlyBudgetActual: React.FC = () => {
   const { selectedUser } = useAuth();
-
-  const [tenYearProgress, setTenYearProgress] = useState(0);
 
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
-  const [tenYearData, setTenYearData] = useState(DEMO_ROADMAP_DATA.tenYearData);
   const [targets, setTargets] = useState<YearlyData[]>([]);
 
   const [tableViewPeriod, setTableViewPeriod] = useState<"1-5" | "6-10">("1-5");
@@ -278,23 +252,10 @@ const YearlyBudgetActual: React.FC = () => {
           });
 
           setTargets(yearlyTargets);
-
-          // 初回ロード時にも一度 10年目標進捗を計算しておく
-          const tenYearTarget = plPlan.tenYearTargetNetWorth;
-          const latestActual = getLatestNetWorthActual(yearlyTargets);
-          const progress =
-            tenYearTarget > 0 ? (latestActual / tenYearTarget) * 100 : 0;
-
-          setTenYearData({
-            target: Math.round(tenYearTarget / 10000),
-            actual: Math.round(latestActual / 10000),
-            progress,
-          });
         } else {
           // マンダラ連動が無い場合はデモデータ
           const data = getDemoDataForUser(selectedUser.id);
           setTargets(JSON.parse(JSON.stringify(data.yearlyTargets)));
-          setTenYearData(data.tenYearData);
         }
       } catch (err) {
         setError("データの読み込みに失敗しました");
@@ -305,23 +266,6 @@ const YearlyBudgetActual: React.FC = () => {
 
     loadData();
   }, [selectedUser]);
-
-  // ★ targets が変わるたびに 10年目標進捗を再計算
-  useEffect(() => {
-    const plPlan = loadPlPlan();
-    if (!plPlan) return;
-
-    const tenYearTarget = plPlan.tenYearTargetNetWorth;
-    const latestActual = getLatestNetWorthActual(targets);
-    const progress =
-      tenYearTarget > 0 ? (latestActual / tenYearTarget) * 100 : 0;
-
-    setTenYearData({
-      target: Math.round(tenYearTarget / 10000),
-      actual: Math.round(latestActual / 10000),
-      progress,
-    });
-  }, [targets]);
 
   // セル更新
   const handleCellUpdate = (
@@ -421,10 +365,10 @@ const YearlyBudgetActual: React.FC = () => {
 
       if (mandalaUpdated) {
         alert(
-          "保存しました！\n\n✨ マンダラチャートの目標も自動更新されました!"
+          "保存しました!\n\n✨ マンダラチャートの目標も自動更新されました!"
         );
       } else {
-        alert("保存しました！");
+        alert("保存しました!");
       }
     } catch (err) {
       console.error("保存エラー:", err);
@@ -433,33 +377,6 @@ const YearlyBudgetActual: React.FC = () => {
       setIsSaving(false);
     }
   };
-
-  // 10年進捗アニメーション
-  useEffect(() => {
-    const target = Math.max(0, Math.min(100, tenYearData.progress || 0));
-
-    // いったん 0 にリセット
-    setTenYearProgress(0);
-
-    // 0% の場合はアニメーション無しで終わり
-    if (target === 0) {
-      return;
-    }
-
-    let progress = 0;
-    const interval = setInterval(() => {
-      progress += 0.5;
-      if (progress >= target) {
-        progress = target;
-        clearInterval(interval);
-      }
-      setTenYearProgress(progress);
-    }, 40);
-
-    return () => {
-      clearInterval(interval);
-    };
-  }, [tenYearData.progress]);
 
   const getTableDisplayData = useCallback(() => {
     if (tableViewPeriod === "1-5") {
@@ -597,11 +514,6 @@ const YearlyBudgetActual: React.FC = () => {
       targetField: "operatingProfitTarget",
       actualField: "operatingProfitActual",
     },
-    {
-      label: "純資産",
-      targetField: "netWorthTarget",
-      actualField: "netWorthActual",
-    },
   ];
 
   return (
@@ -615,79 +527,10 @@ const YearlyBudgetActual: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-        {/* 10年進捗 */}
+        {/* 粗利益推移予測 */}
         <div className="card">
           <h3 className="text-body font-semibold text-text mb-4">
-            10年目標進捗
-          </h3>
-          <div className="flex justify-center">
-            <div>
-              <div className="w-full h-64 flex items-center justify-center">
-                <div className="relative w-56 h-56">
-                  <svg
-                    className="w-full h-full transform -rotate-90"
-                    viewBox="0 0 100 100"
-                  >
-                    <circle
-                      cx="50"
-                      cy="50"
-                      r="40"
-                      stroke="#E0E0E0"
-                      strokeWidth="8"
-                      fill="none"
-                    />
-                    <circle
-                      cx="50"
-                      cy="50"
-                      r="40"
-                      stroke="#13AE67"
-                      strokeWidth="8"
-                      fill="none"
-                      strokeDasharray={`${
-                        (tenYearProgress * 251.2) / 100
-                      } 251.2`}
-                      strokeLinecap="round"
-                      className="transition-all duration-300"
-                    />
-                  </svg>
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="text-center">
-                      <div className="text-heading font-bold text-primary">
-                        {tenYearProgress === 0
-                          ? "0.0%"
-                          : `${tenYearProgress.toFixed(1)}%`}
-                      </div>
-                      <div className="text-body" style={{ color: "#1E1F1F" }}>
-                        10年進捗
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div className="text-center">
-                <p className="text-note text-text/70">
-                  {tenYearData.actual}万 / {tenYearData.target}万
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex justify-center mt-4 space-x-4">
-            <div className="flex items-center space-x-2">
-              <div className="w-3 h-3 bg-primary rounded-full"></div>
-              <span className="text-note text-text/70">達成</span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <div className="w-3 h-3 bg-gray-300 rounded-full"></div>
-              <span className="text-note text-text/70">未達成</span>
-            </div>
-          </div>
-        </div>
-
-        {/* 純資産推移予測 */}
-        <div className="card">
-          <h3 className="text-body font-semibold text-text mb-4">
-            純資産推移予測
+            粗利益推移予測
           </h3>
           <ResponsiveContainer width="100%" height={320}>
             <LineChart data={targets}>
@@ -695,7 +538,7 @@ const YearlyBudgetActual: React.FC = () => {
               <XAxis
                 dataKey="year"
                 stroke="#1E1F1F"
-                tickFormatter={(value) => `${value}年`}
+                tickFormatter={(value) => `${value}年目`}
               />
               <YAxis
                 stroke="#1E1F1F"
@@ -707,26 +550,74 @@ const YearlyBudgetActual: React.FC = () => {
                   `${(value / 10000).toLocaleString()}万円`,
                   item && item.name,
                 ]}
-                labelFormatter={(label) => `${label}年`}
+                labelFormatter={(label) => `${label}年目`}
                 labelStyle={{ color: "#1E1F1F" }}
               />
               {/* 目標（グレー） */}
               <Line
                 type="monotone"
-                dataKey="netWorthTarget"
+                dataKey="grossProfitTarget"
                 stroke="#E0E0E0"
                 strokeWidth={3}
                 dot={{ fill: "#E0E0E0", strokeWidth: 2, r: 4 }}
-                name="純資産目標"
+                name="粗利益目標"
               />
               {/* 実績（グリーン） */}
               <Line
                 type="monotone"
-                dataKey="netWorthActual"
+                dataKey="grossProfitActual"
                 stroke="#13AE67"
                 strokeWidth={3}
                 dot={{ fill: "#13AE67", strokeWidth: 1, r: 3 }}
-                name="純資産実績"
+                name="粗利益実績"
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* 営業利益推移予測 */}
+        <div className="card">
+          <h3 className="text-body font-semibold text-text mb-4">
+            営業利益推移予測
+          </h3>
+          <ResponsiveContainer width="100%" height={320}>
+            <LineChart data={targets}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#E0E0E0" />
+              <XAxis
+                dataKey="year"
+                stroke="#1E1F1F"
+                tickFormatter={(value) => `${value}年目`}
+              />
+              <YAxis
+                stroke="#1E1F1F"
+                domain={[0, 50000000]}
+                tickFormatter={(value) => `${(value / 10000).toFixed(0)}万`}
+              />
+              <Tooltip
+                formatter={(value: number, _key, item) => [
+                  `${(value / 10000).toLocaleString()}万円`,
+                  item && item.name,
+                ]}
+                labelFormatter={(label) => `${label}年目`}
+                labelStyle={{ color: "#1E1F1F" }}
+              />
+              {/* 目標（グレー） */}
+              <Line
+                type="monotone"
+                dataKey="operatingProfitTarget"
+                stroke="#E0E0E0"
+                strokeWidth={3}
+                dot={{ fill: "#E0E0E0", strokeWidth: 2, r: 4 }}
+                name="営業利益目標"
+              />
+              {/* 実績（グリーン） */}
+              <Line
+                type="monotone"
+                dataKey="operatingProfitActual"
+                stroke="#13AE67"
+                strokeWidth={3}
+                dot={{ fill: "#13AE67", strokeWidth: 1, r: 3 }}
+                name="営業利益実績"
               />
             </LineChart>
           </ResponsiveContainer>

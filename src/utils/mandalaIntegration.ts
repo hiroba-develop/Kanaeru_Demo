@@ -109,7 +109,6 @@ export const detectPlMetricFromTitle = (
   if (/売上|売上高|売上目標/.test(t)) return "revenue";
   if (/粗利|粗利益/.test(t)) return "grossProfit";
   if (/営業利益/.test(t)) return "operatingProfit";
-  if (/純資産|資産形成/.test(t)) return "netWorth";
 
   return undefined;
 };
