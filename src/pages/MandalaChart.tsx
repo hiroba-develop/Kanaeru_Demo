@@ -24,7 +24,7 @@ type MajorRingProgressProps = {
 
 const formatTitleWithLineBreaks = (title: string, chunkSize = 8): string => {
   if (!title) return "";
-  const chars = Array.from(title); // 絵文字やサロゲートペア対策
+  const chars = Array.from(title);
   const chunks: string[] = [];
   for (let i = 0; i < chars.length; i += chunkSize) {
     chunks.push(chars.slice(i, i + chunkSize).join(""));
@@ -32,7 +32,6 @@ const formatTitleWithLineBreaks = (title: string, chunkSize = 8): string => {
   return chunks.join("\n");
 };
 
-// 入力時に改行を取り除いて、生のテキストだけを状態に持つ
 const removeLineBreaks = (value: string): string => {
   return value.replace(/\n/g, "");
 };
@@ -129,34 +128,38 @@ const MultiRingProgress: React.FC<MultiRingProgressProps> = ({
 
 interface MandalaCellFrameProps {
   status: "not_started" | "in_progress" | "achieved";
+  visualStatus?: "not_started" | "in_progress" | "achieved";
   children: React.ReactNode;
 }
 
 const MandalaCellFrame: React.FC<MandalaCellFrameProps> = ({
   status,
+  visualStatus,
   children,
 }) => {
+  const displayStatus = visualStatus || status;
+
   const base =
     "aspect-square border-2 rounded-card-lg p-4 flex flex-col transition-all relative";
 
   const statusClass =
-    status === "achieved"
+    displayStatus === "achieved"
       ? "border-achieved bg-achieved/5"
-      : status === "in_progress"
+      : displayStatus === "in_progress"
       ? "border-primary bg-primary/5"
       : "border-border bg-background";
 
   return (
     <div className={`${base} ${statusClass}`}>
-      {status !== "not_started" && (
+      {displayStatus !== "not_started" && (
         <div className="absolute inset-0 pointer-events-none">
-          {status === "in_progress" && (
+          {displayStatus === "in_progress" && (
             <>
               <div className="absolute top-2 left-2 w-3 h-3 border border-primary rounded-full opacity-60" />
               <div className="absolute bottom-3 right-4 w-4 h-4 border border-primary/70 rounded-full opacity-40" />
             </>
           )}
-          {status === "achieved" && (
+          {displayStatus === "achieved" && (
             <>
               <div className="absolute top-2 right-3 w-4 h-4 bg-achieved rounded-full opacity-70" />
               <div
@@ -185,6 +188,7 @@ type ViewLevel = "major" | "middle" | "minor";
 
 const MandalaChart: React.FC = () => {
   const [viewLevel, setViewLevel] = useState<ViewLevel>("major");
+  const [composingCellId, setComposingCellId] = useState<string | null>(null);
   const [selectedMajorCellId, setSelectedMajorCellId] = useState<string | null>(
     null
   );
@@ -275,10 +279,7 @@ const MandalaChart: React.FC = () => {
   });
 
   useEffect(() => {
-    // 常に保存（空文字のときに古い値が残らないように）
     localStorage.setItem("mandala_center_goal_v2", centerGoal);
-
-    // 最終目標が変わるたびに PL 計画を再生成
     onMandalaGoalUpdate();
   }, [centerGoal]);
 
@@ -341,13 +342,17 @@ const MandalaChart: React.FC = () => {
           charts[cell.id] = {
             centerId: cell.id,
             centerTitle: cell.title,
-            cells: Array.from({ length: 10 }, (_, i) => ({
-              id: `${cell.id}_minor_${i + 1}`,
-              title: "",
-              achievement: 0,
-              status: "not_started" as const,
-              isChecked: false,
-            })),
+            cells: Array.from({ length: 10 }, (_, i) => {
+              const inheritedPlMetric = cell.plMetric;
+              return {
+                id: `${cell.id}_minor_${i + 1}`,
+                title: "",
+                achievement: 0,
+                status: "not_started" as const,
+                isChecked: false,
+                plMetric: inheritedPlMetric,
+              };
+            }),
           };
         } else {
           charts[cell.id] = {
@@ -391,6 +396,13 @@ const MandalaChart: React.FC = () => {
     if (!selectedMiddleCellId || !minorCharts[selectedMiddleCellId]) return;
 
     const chart = minorCharts[selectedMiddleCellId];
+    const targetCell = chart.cells.find((c) => c.id === minorCellId);
+
+    // PL項目の小目標は手動チェック禁止
+    if (targetCell?.plMetric) {
+      return;
+    }
+
     const updatedCells = chart.cells.map((cell) => {
       if (cell.id === minorCellId) {
         const newChecked = !cell.isChecked;
@@ -442,16 +454,19 @@ const MandalaChart: React.FC = () => {
       if (cellIndex !== -1) {
         const prevCell = middleChart.cells[cellIndex];
 
-        // ✅ すでに PL 側で「達成」になっている中目標は、小目標操作では status をいじらない
+        // すでに PL 側で「達成」になっている中目標は status をいじらない
         if (prevCell.status === "achieved") {
           return;
         }
+
+        // PL項目の場合は status を更新しない
+        const isPLMetric = !!prevCell.plMetric;
 
         const updatedCells = [...middleChart.cells];
         updatedCells[cellIndex] = {
           ...prevCell,
           achievement,
-          status: getCellStatus(achievement), // ここは「PL 未達のときだけ」有効
+          status: isPLMetric ? prevCell.status : getCellStatus(achievement),
         };
 
         setMiddleCharts({
@@ -464,7 +479,11 @@ const MandalaChart: React.FC = () => {
 
         updateMajorAchievement(majorId, updatedCells);
 
-        if (achievement === 100 && updatedCells[cellIndex].title) {
+        if (
+          !isPLMetric &&
+          achievement === 100 &&
+          updatedCells[cellIndex].title
+        ) {
           setAchievementPopup({
             isOpen: true,
             goalTitle: updatedCells[cellIndex].title,
@@ -488,17 +507,14 @@ const MandalaChart: React.FC = () => {
     setMajorCells((prev) =>
       prev.map((cell) => {
         if (cell.id === majorId) {
-          // ★ PL 側で決まった status は触らない
           const newCell = {
             ...cell,
-            achievement, // リング用の進捗だけ更新
+            achievement,
           };
 
-          // ★ ここで status を見て、PL 側ですでに achieved になっているときだけ
-          //    ポップアップを出す（任意。不要ならここごと消してもOK）
           if (
-            cell.status !== "achieved" && // いままで未達だったのが
-            newCell.achievement === 100 && // マンダラ進捗的にも 100% になり
+            cell.status !== "achieved" &&
+            newCell.achievement === 100 &&
             cell.title
           ) {
             setAchievementPopup({
@@ -632,19 +648,24 @@ const MandalaChart: React.FC = () => {
               const cell = majorCells[cellIndex];
               const ringRatios = getMajorRingRatios(cell.id);
 
-              // 🔽 追加：中目標のマンダラが全部達成しているか？
-              // ringRatios は各中目標ごとの「小目標達成率」(0〜1)
-              // ここでは「全部 1.0 (100%)」ならマンダラ達成とみなす
               const mandalaCompleted =
                 ringRatios.length > 0 && ringRatios.every((r) => r >= 1);
-              console.log("mandalaCompleted", mandalaCompleted);
 
-              // 🔽 追加：「PL達成 ＋ マンダラ達成」のときだけ “真の達成”
               const isFullyCompleted =
                 cell.status === "achieved" && mandalaCompleted;
-              console.log("isFullyCompleted", isFullyCompleted);
+
+              // visualStatus の計算: PLだけ達成でマンダラ未達なら in_progress に降格
+              const visualStatus: MandalaCell["status"] =
+                cell.status === "achieved" && !mandalaCompleted
+                  ? "in_progress"
+                  : cell.status;
+
               return (
-                <MandalaCellFrame key={cell.id} status={cell.status}>
+                <MandalaCellFrame
+                  key={cell.id}
+                  status={cell.status}
+                  visualStatus={visualStatus}
+                >
                   <div className="flex flex-col items-center h-full">
                     <p className="text-note text-text/70 font-semibold mb-2">
                       大目標 {cellIndex + 1}
@@ -654,14 +675,12 @@ const MandalaChart: React.FC = () => {
                       {cell.title && (
                         <>
                           {isFullyCompleted ? (
-                            // ✅ 数字もマンダラも両方達成 → ピンクアイコン表示
                             <img
                               src={complate_icon}
                               alt="達成リング"
                               className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none w-[190px] h-[190px]"
                             />
                           ) : ringRatios.some((r) => r > 0) ? (
-                            // ✅ それ以外（数字だけ達成 / マンダラだけ / 途中）は緑リング
                             <MajorRingProgress
                               ringRatios={ringRatios}
                               size={190}
@@ -670,21 +689,44 @@ const MandalaChart: React.FC = () => {
                         </>
                       )}
 
-                      {/* 目標タイトル入力エリアはそのまま */}
                       <div className="absolute inset-0 flex items-center justify-center">
                         <textarea
-                          value={formatTitleWithLineBreaks(cell.title)}
+                          // ★ このマスを編集中なら「生テキスト」、それ以外は 8文字改行済み
+                          value={
+                            composingCellId === cell.id
+                              ? cell.title
+                              : formatTitleWithLineBreaks(cell.title)
+                          }
                           onChange={(e) => {
                             const raw = removeLineBreaks(e.target.value);
                             const newValue = raw.slice(0, MAX_CHARS);
+
                             setMajorCells((prev) =>
                               prev.map((c) =>
                                 c.id === cell.id ? { ...c, title: newValue } : c
                               )
                             );
                           }}
-                          className={`bg-transparent border-none text-body text-center focus:outline-none focus:ring-0 focus:border-transparent resize-none
-${cell.status === "achieved" ? "text-achieved" : "text-primary"}`}
+                          onCompositionStart={() => {
+                            // ★ このマスが IME 変換中
+                            setComposingCellId(cell.id);
+                          }}
+                          onCompositionEnd={(e) => {
+                            const raw = removeLineBreaks(e.currentTarget.value);
+                            const newValue = raw.slice(0, MAX_CHARS);
+
+                            setComposingCellId(null); // ★ 変換終了
+                            setMajorCells((prev) =>
+                              prev.map((c) =>
+                                c.id === cell.id ? { ...c, title: newValue } : c
+                              )
+                            );
+                          }}
+                          className={`bg-transparent border-none text-body text-center focus:outline-none focus:ring-0 focus:border-transparent resize-none ${
+                            visualStatus === "achieved"
+                              ? "text-achieved"
+                              : "text-primary"
+                          }`}
                           style={{
                             width: "90%",
                             lineHeight: "1.1",
@@ -770,15 +812,23 @@ ${cell.status === "achieved" ? "text-achieved" : "text-primary"}`}
               const cell = middleChart.cells[cellIndex];
               const progress = getMiddleCellProgress(cell.id);
 
-              // ✅ 下階層マンダラの達成状況（小目標10個チェックで true）
               const mandalaCompleted = progress.isCompleted;
 
-              // ✅ 「数字も達成 ＋ マンダラも達成」のときだけ “真の達成”
               const isFullyCompleted =
                 mandalaCompleted && cell.status === "achieved";
 
+              // visualStatus の計算: PLだけ達成でマンダラ未達なら in_progress に降格
+              const visualStatus: MandalaCell["status"] =
+                cell.status === "achieved" && !mandalaCompleted
+                  ? "in_progress"
+                  : cell.status;
+
               return (
-                <MandalaCellFrame key={cell.id} status={cell.status}>
+                <MandalaCellFrame
+                  key={cell.id}
+                  status={cell.status}
+                  visualStatus={visualStatus}
+                >
                   <div className="relative z-10 text-center flex flex-col h-full">
                     <p className="text-note text-text/70 font-semibold mb-2">
                       中目標 {cellIndex + 1}
@@ -788,18 +838,15 @@ ${cell.status === "achieved" ? "text-achieved" : "text-primary"}`}
                       {cell.title && (
                         <>
                           {isFullyCompleted ? (
-                            // ✅ 両方達成したときだけ「ピンクの達成アイコン」を表示
                             <img
                               src={complate_icon}
                               alt="達成リング"
                               className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none w-[190px] h-[190px]"
                             />
                           ) : progress.totalRings > 0 ? (
-                            // ✅ それ以外のときは「緑リング」で進捗表示
                             <MultiRingProgress
                               totalRings={progress.totalRings}
                               filledRings={progress.filledRings}
-                              // 数字達成だけではピンクにならないように false 固定
                               isCompleted={false}
                               size={190}
                             />
@@ -809,7 +856,11 @@ ${cell.status === "achieved" ? "text-achieved" : "text-primary"}`}
 
                       <div className="absolute inset-0 flex items-center justify-center">
                         <textarea
-                          value={formatTitleWithLineBreaks(cell.title)}
+                          value={
+                            composingCellId === cell.id
+                              ? cell.title
+                              : formatTitleWithLineBreaks(cell.title)
+                          }
                           onChange={(e) => {
                             const raw = removeLineBreaks(e.target.value);
                             const newValue = raw.slice(0, MAX_CHARS);
@@ -828,8 +879,33 @@ ${cell.status === "achieved" ? "text-achieved" : "text-primary"}`}
                               },
                             }));
                           }}
-                          className={`bg-transparent border-none text-body text-center focus:outline-none focus:ring-0 focus:border-transparent resize-none
-${cell.status === "achieved" ? "text-achieved" : "text-primary"}`}
+                          onCompositionStart={() => {
+                            setComposingCellId(cell.id);
+                          }}
+                          onCompositionEnd={(e) => {
+                            const raw = removeLineBreaks(e.currentTarget.value);
+                            const newValue = raw.slice(0, MAX_CHARS);
+                            const plMetric = detectPlMetricFromTitle(newValue);
+
+                            setComposingCellId(null);
+                            setMiddleCharts((prev) => ({
+                              ...prev,
+                              [selectedMajorCellId]: {
+                                ...prev[selectedMajorCellId],
+                                cells: prev[selectedMajorCellId].cells.map(
+                                  (c) =>
+                                    c.id === cell.id
+                                      ? { ...c, title: newValue, plMetric }
+                                      : c
+                                ),
+                              },
+                            }));
+                          }}
+                          className={`bg-transparent border-none text-body text-center focus:outline-none focus:ring-0 focus:border-transparent resize-none ${
+                            visualStatus === "achieved"
+                              ? "text-achieved"
+                              : "text-primary"
+                          }`}
                           style={{
                             width: "85%",
                             lineHeight: "1.1",
@@ -914,58 +990,78 @@ ${cell.status === "achieved" ? "text-achieved" : "text-primary"}`}
           </div>
 
           <div className="space-y-3">
-            {minorChart.cells.map((cell) => (
-              <div
-                key={cell.id}
-                className={`flex items-center space-x-3 p-2 rounded-card-lg border-2 transition-all ${
-                  cell.isChecked
-                    ? "border-primary bg-primary/5"
-                    : "border-border bg-white"
-                }`}
-              >
-                <button
-                  onClick={() => handleMinorCheck(cell.id)}
-                  disabled={!cell.title}
-                  className={`flex-shrink-0 w-8 h-8 rounded-full border-2 flex items-center justify-center transition-all ${
+            {minorChart.cells.map((cell) => {
+              const isPLMetric = !!cell.plMetric;
+
+              return (
+                <div
+                  key={cell.id}
+                  className={`flex items-center space-x-3 p-2 rounded-card-lg border-2 transition-all ${
                     cell.isChecked
-                      ? "bg-primary border-primary"
-                      : cell.title
-                      ? "border-border hover:border-primary cursor-pointer"
-                      : "border-border cursor-not-allowed"
+                      ? "border-primary bg-primary/5"
+                      : "border-border bg-white"
                   }`}
                 >
-                  {cell.isChecked && <Check className="w-5 h-5 text-white" />}
-                </button>
-
-                <div className="flex-1 min-w-0">
-                  <input
-                    type="text"
-                    value={cell.title}
-                    onChange={(e) => {
-                      const newValue = e.target.value.slice(0, MAX_CHARS);
-                      setMinorCharts({
-                        ...minorCharts,
-                        [selectedMiddleCellId]: {
-                          ...minorChart,
-                          cells: minorChart.cells.map((c) =>
-                            c.id === cell.id ? { ...c, title: newValue } : c
-                          ),
-                        },
-                      });
-                    }}
-                    className={`w-full bg-transparent border-none focus:outline-none text-body font-medium ${
+                  <button
+                    onClick={() => handleMinorCheck(cell.id)}
+                    disabled={!cell.title || isPLMetric}
+                    className={`flex-shrink-0 w-8 h-8 rounded-full border-2 flex items-center justify-center transition-all ${
                       cell.isChecked
-                        ? "line-through text-text/40"
-                        : "text-primary"
+                        ? "bg-primary border-primary"
+                        : cell.title && !isPLMetric
+                        ? "border-border hover:border-primary cursor-pointer"
+                        : "border-border cursor-not-allowed opacity-50"
                     }`}
-                    maxLength={MAX_CHARS}
-                    placeholder={
-                      "ここに22文字まで目標の" + "\n" + "テキストが入ります。"
-                    }
-                  />
+                    title={isPLMetric ? "PL実績により自動で反映されます" : ""}
+                  >
+                    {cell.isChecked && <Check className="w-5 h-5 text-white" />}
+                  </button>
+
+                  <div className="flex-1 min-w-0">
+                    <input
+                      type="text"
+                      value={cell.title}
+                      onChange={(e) => {
+                        const newValue = e.target.value.slice(0, MAX_CHARS);
+                        const detectedPlMetric =
+                          detectPlMetricFromTitle(newValue);
+
+                        setMinorCharts({
+                          ...minorCharts,
+                          [selectedMiddleCellId]: {
+                            ...minorChart,
+                            cells: minorChart.cells.map((c) =>
+                              c.id === cell.id
+                                ? {
+                                    ...c,
+                                    title: newValue,
+                                    // ★ 毎回タイトルから判定し直す。マッチしなければ plMetric は undefined に戻る
+                                    plMetric: detectedPlMetric,
+                                  }
+                                : c
+                            ),
+                          },
+                        });
+                      }}
+                      className={`w-full bg-transparent border-none focus:outline-none text-body font-medium ${
+                        cell.isChecked
+                          ? "line-through text-text/40"
+                          : isPLMetric
+                          ? "text-primary/70"
+                          : "text-primary"
+                      }`}
+                      maxLength={MAX_CHARS}
+                      placeholder="ここに22文字まで目標のテキストが入ります。"
+                    />
+                    {isPLMetric && cell.title && (
+                      <p className="text-xs text-text/50 mt-1">
+                        📊 PL実績により自動で反映されます
+                      </p>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
 
@@ -992,7 +1088,7 @@ ${cell.status === "achieved" ? "text-achieved" : "text-primary"}`}
         }
         goalTitle={achievementPopup.goalTitle}
         level={achievementPopup.level}
-        message="素晴らしい成果です！この調子で次の目標も達成しましょう!"
+        message="素晴らしい成果です!この調子で次の目標も達成しましょう!"
       />
     </div>
   );

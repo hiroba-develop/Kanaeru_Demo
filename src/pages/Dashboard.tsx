@@ -32,6 +32,16 @@ const getMandalaGrid = () => {
   };
 };
 
+// 8文字ごとに改行コードを入れる
+const formatTitleBy8Chars = (text: string): string => {
+  if (!text) return "";
+  const chunks: string[] = [];
+  for (let i = 0; i < text.length; i += 8) {
+    chunks.push(text.slice(i, i + 8));
+  }
+  return chunks.join("\n"); // 改行コードで結合
+};
+
 const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const {} = useAuth();
@@ -122,8 +132,10 @@ const Dashboard: React.FC = () => {
                         key="center"
                         className="aspect-square bg-gradient-to-br from-achieved to-achieved/70 rounded-card-lg flex items-center justify-center p-2"
                       >
-                        <p className="text-white text-center text-note font-semibold line-clamp-3">
-                          {mandalaGrid.centerGoal || "目標"}
+                        <p className="text-white text-center text-note font-semibold line-clamp-3 whitespace-pre-line">
+                          {formatTitleBy8Chars(
+                            mandalaGrid.centerGoal || "目標"
+                          )}
                         </p>
                       </div>
                     );
@@ -152,21 +164,26 @@ const Dashboard: React.FC = () => {
                         <img
                           src={complate_icon}
                           alt="達成リング"
-                          className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 opacity-80 pointer-events-none w-16 h-16"
+                          className="
+                          absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2
+                          opacity-80 pointer-events-none
+                          w-2/3 h-2/3 max-w-[80px] max-h-[80px]
+                          md:max-w-[100px] md:max-h-[100px]
+                        "
                         />
                       )}
 
                       <p
-                        className={`relative z-10 text-center text-note font-medium line-clamp-3
-            ${
-              isCompleted
-                ? "text-achieved"
-                : hasContent
-                ? "text-primary"
-                : "text-text/50"
-            }`}
+                        className={`relative z-10 text-center text-note font-medium line-clamp-3 whitespace-pre-line
+    ${
+      isCompleted
+        ? "text-achieved"
+        : hasContent
+        ? "text-primary"
+        : "text-text/50"
+    }`}
                       >
-                        {hasContent ? cell!.title : ""}
+                        {hasContent ? formatTitleBy8Chars(cell!.title) : ""}
                       </p>
                     </div>
                   );

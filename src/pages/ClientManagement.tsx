@@ -170,7 +170,7 @@ const DEMO_USERS: UserPerformanceData[] = [
     businessStartDate: "2023-04",
     financialKnowledge: "中級レベル",
     lastUpdated: "2025-07-05",
-    fiscalYearEndMonth: 3, // 3月決算
+    fiscalYearEndMonth: 3,
     performance: {
       twoMonthsAgo: {
         sales: { target: 1000000, actual: 1050000, achievementRate: 105.0 },
@@ -271,7 +271,7 @@ const DEMO_USERS: UserPerformanceData[] = [
     businessStartDate: "2024-01",
     financialKnowledge: "初心者",
     lastUpdated: "2025-07-04",
-    fiscalYearEndMonth: 12, // 12月決算
+    fiscalYearEndMonth: 12,
     performance: {
       twoMonthsAgo: {
         sales: { target: 800000, actual: 820000, achievementRate: 102.5 },
@@ -359,7 +359,7 @@ const DEMO_USERS: UserPerformanceData[] = [
     businessStartDate: "2020-06",
     financialKnowledge: "上級レベル",
     lastUpdated: "2025-07-03",
-    fiscalYearEndMonth: 6, // 6月決算
+    fiscalYearEndMonth: 6,
     performance: {
       twoMonthsAgo: {
         sales: { target: 1400000, actual: 1300000, achievementRate: 92.9 },
@@ -439,7 +439,7 @@ const DEMO_USERS: UserPerformanceData[] = [
     businessStartDate: "2023-10",
     financialKnowledge: "初心者",
     lastUpdated: "2025-07-05",
-    fiscalYearEndMonth: 9, // 9月決算
+    fiscalYearEndMonth: 9,
     performance: {
       twoMonthsAgo: {
         sales: { target: 500000, actual: 550000, achievementRate: 110.0 },
@@ -509,7 +509,7 @@ const DEMO_USERS: UserPerformanceData[] = [
     businessStartDate: "2021-02",
     financialKnowledge: "中級レベル",
     lastUpdated: "2025-07-02",
-    fiscalYearEndMonth: 12, // 12月決算
+    fiscalYearEndMonth: 12,
     performance: {
       twoMonthsAgo: {
         sales: { target: 1800000, actual: 1900000, achievementRate: 105.6 },
@@ -591,11 +591,6 @@ const ClientManagement: React.FC = () => {
   );
   const [users, setUsers] = useState<UserPerformanceData[]>(DEMO_USERS);
   const [searchTerm, setSearchTerm] = useState("");
-  const [sortOrder, setSortOrder] = useState("name_asc");
-  const [currentComment, setCurrentComment] = useState("");
-  const [goodPoint, setGoodPoint] = useState("");
-  const [cautionPoint, setCautionPoint] = useState("");
-  const [badPoint, setBadPoint] = useState("");
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isAddUserModalOpen, setIsAddUserModalOpen] = useState(false);
   const [newUser, setNewUser] = useState<
@@ -668,89 +663,17 @@ const ClientManagement: React.FC = () => {
     // デモ用のローディングシミュレーション
     const timer = setTimeout(() => {
       setIsLoading(false);
-    }, 1000); // 1秒後にローディングを終了
+    }, 1000);
 
-    return () => clearTimeout(timer); // クリーンアップ関数
-  }, []); // 空の依存配列でコンポーネントマウント時に一度だけ実行
+    return () => clearTimeout(timer);
+  }, []);
 
-  const [editableRoadmap, setEditableRoadmap] = useState<RoadmapYear[]>([]);
-  const [openYear, setOpenYear] = useState<number | null>(null);
-  const [editableSalesTargets, setEditableSalesTargets] = useState<
-    SalesTarget[]
-  >([]);
-  const [isSalesTargetModified, setIsSalesTargetModified] =
-    useState<boolean>(false);
-
-  // selectedUser が変更されたときにロードマップ編集用のstateを更新
-  useEffect(() => {
-    if (selectedUser) {
-      setEditableRoadmap(selectedUser.roadmap);
-      setEditableSalesTargets(selectedUser.salesTargets || []);
-      setIsSalesTargetModified(false);
-    } else {
-      setEditableRoadmap([]);
-      setEditableSalesTargets([]);
-    }
-    setOpenYear(null); // ユーザー切り替え時にアコーディオンを閉じる
-  }, [selectedUser]);
-
-  const getCardBorderClass = (user: UserPerformanceData) => {
-    if (!user.hasComment || !user.commentDate) {
-      return "border-l-4 border-l-[#13AE67]";
-    }
-
-    const oneMonthAgo = new Date();
-    oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
-    oneMonthAgo.setHours(0, 0, 0, 0);
-
-    const commentDate = new Date(user.commentDate);
-    commentDate.setHours(0, 0, 0, 0);
-
-    if (commentDate < oneMonthAgo) {
-      return "border-l-4 border-l-[#13AE67]";
-    }
-
-    return "border-l-4 border-l-[#13AE67]";
-  };
-
-  // フィルタリングとソート
-  const filteredAndSortedUsers = users
-    .filter(
-      (user) =>
-        user.userName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        user.companyName.toLowerCase().includes(searchTerm.toLowerCase())
-    )
-    .sort((a, b) => {
-      switch (sortOrder) {
-        case "date_asc": {
-          const aDate = a.commentDate
-            ? new Date(a.commentDate).getTime()
-            : Infinity;
-          const bDate = b.commentDate
-            ? new Date(b.commentDate).getTime()
-            : Infinity;
-          if (aDate === bDate) {
-            return a.userName.localeCompare(b.userName);
-          }
-          return aDate - bDate;
-        }
-        case "date_desc": {
-          const aDate = a.commentDate
-            ? new Date(a.commentDate).getTime()
-            : -Infinity;
-          const bDate = b.commentDate
-            ? new Date(b.commentDate).getTime()
-            : -Infinity;
-          if (aDate === bDate) {
-            return a.userName.localeCompare(b.userName);
-          }
-          return bDate - aDate;
-        }
-        case "name_asc":
-        default:
-          return a.userName.localeCompare(b.userName);
-      }
-    });
+  // フィルタリング
+  const filteredAndSortedUsers = users.filter(
+    (user) =>
+      user.userName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.companyName.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   const openAddUserModal = () => {
     setNewUser({
@@ -837,7 +760,7 @@ const ClientManagement: React.FC = () => {
       commentDate: "",
       commentHistory: [],
       roadmap: generateDefaultRoadmap(),
-      fiscalYearEndMonth: 12, // デフォルト
+      fiscalYearEndMonth: 12,
       ...newUserPayload,
       businessStartDate,
       role: "一般ユーザー",
@@ -850,31 +773,9 @@ const ClientManagement: React.FC = () => {
     closeAddUserModal();
   };
 
-  // ユーザー選択時にコメントを読み込む
+  // ユーザー選択時の処理
   const handleUserSelect = (user: UserPerformanceData) => {
     setSelectedUser(user);
-    // 下書きがあれば読み込む
-    const draft = localStorage.getItem(`comment_draft_${user.userId}`);
-    if (draft) {
-      try {
-        const parsed = JSON.parse(draft);
-        setCurrentComment(parsed.comment || "");
-        setGoodPoint(parsed.goodPoint || user.goodPoint || "");
-        setCautionPoint(parsed.cautionPoint || user.cautionPoint || "");
-        setBadPoint(parsed.badPoint || user.badPoint || "");
-      } catch (e) {
-        // 古い形式の下書き（文字列のみ）との互換性のため
-        setCurrentComment(draft);
-        setGoodPoint(user.goodPoint || "");
-        setCautionPoint(user.cautionPoint || "");
-        setBadPoint(user.badPoint || "");
-      }
-    } else {
-      setCurrentComment("");
-      setGoodPoint(user.goodPoint || "");
-      setCautionPoint(user.cautionPoint || "");
-      setBadPoint(user.badPoint || "");
-    }
   };
 
   // ユーザー詳細画面
@@ -1090,18 +991,6 @@ const ClientManagement: React.FC = () => {
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
                 />
               </div>
-              {/* <div className="flex items-center space-x-2">
-                <span className="text-sm text-text/70">並び順:</span>
-                <select
-                  value={sortOrder}
-                  onChange={(e) => setSortOrder(e.target.value)}
-                  className="pl-2 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-                >
-                  <option value="name_asc">名前順</option>
-                  <option value="date_asc">最終アドバイス日順(昇順)</option>
-                  <option value="date_desc">最終アドバイス日順(降順)</option>
-                </select>
-              </div> */}
             </div>
           </div>
 
@@ -1110,9 +999,7 @@ const ClientManagement: React.FC = () => {
             {filteredAndSortedUsers.map((user) => (
               <div
                 key={user.userId}
-                className={`card hover:shadow-lg transition-shadow cursor-pointer ${getCardBorderClass(
-                  user
-                )}`}
+                className="card hover:shadow-lg transition-shadow cursor-pointer border-l-4 border-l-[#13AE67]"
                 onClick={() => handleUserSelect(user)}
               >
                 <div className="flex items-center justify-between mb-4">
@@ -1146,19 +1033,6 @@ const ClientManagement: React.FC = () => {
                         : "未設定"}
                     </span>
                   </div>
-
-                  {/* {user.hasComment && (
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-text/70">
-                        最終アドバイス日
-                      </span>
-                      <span className="text-sm text-green-600 font-medium">
-                        {user.commentDate.includes("T")
-                          ? user.commentDate.replace("T", " ").split(".")[0]
-                          : user.commentDate}
-                      </span>
-                    </div>
-                  )} */}
                 </div>
               </div>
             ))}

@@ -520,15 +520,12 @@ export const onYearlyActualUpdate = (
     achievements.netWorth = actuals.netWorthActual / yearTarget.netWorthTarget;
   }
 
-  // ★ 各大目標・中目標を更新
   majorCells.forEach((majorCell) => {
     const middleChart = middleCharts[majorCell.id];
 
-    // ---------------------------
-    // ① 大目標の PL 達成状況を反映（背景ピンク用）
-    // ---------------------------
+    // ① 大目標の PL 達成状況を反映
     let majorYear = extractYearIndexFromText(majorCell.title);
-    if (majorYear === null) majorYear = 10; // 年指定なしは 10 年目扱い
+    if (majorYear === null) majorYear = 10;
 
     const majorMetric = detectPlMetricFromTitle(majorCell.title);
 
@@ -547,35 +544,50 @@ export const onYearlyActualUpdate = (
       updated = true;
     }
 
-    // ---------------------------
-    // ② 中目標・小目標の更新（今までのロジックほぼそのまま）
-    // ---------------------------
     if (!middleChart) return;
 
     middleChart.cells.forEach((middleCell) => {
       let metric: PlMetric | undefined =
         middleCell.plMetric || detectPlMetricFromTitle(middleCell.title);
-
+    
       if (!metric) return;
       if (!(metric in achievements)) return;
-
-      let middleYear = extractYearIndexFromText(middleCell.title);
-      if (middleYear === null) middleYear = 10;
-      if (middleYear !== year) return;
-
+    
+      // ★ 中目標の年は参照用としてだけ持つ（ここではフィルタしない）
+      const middleYearRaw = extractYearIndexFromText(middleCell.title);
+      const middleYear = middleYearRaw ?? null;
+    
       const rate = achievements[metric]!;
       const minorChart = minorCharts[middleCell.id];
       if (!minorChart) return;
-
+    
       let hasMinorGoalForYear = false;
-
+    
       minorChart.cells.forEach((minorCell) => {
+        // plMetric が設定されていない場合は、タイトルから検出して保存
+        if (!minorCell.plMetric && minorCell.title) {
+          const detectedMetric = detectPlMetricFromTitle(minorCell.title);
+          if (detectedMetric) {
+            minorCell.plMetric = detectedMetric;
+          }
+        }
+    
+        // PL項目の小目標のみ処理
+        if (minorCell.plMetric !== metric) return;
+    
+        // ★ 年の決め方：
+        //    小目標 > 中目標 > 大目標(majorYear) > 今回の year
         const rawYear = extractYearIndexFromText(minorCell.title);
-        const cellYear = rawYear ?? 10;
+        const cellYear =
+          rawYear ??
+          middleYear ??
+          majorYear ?? // ← この majorYear は、少し上で majorCell から取っているやつをそのまま使ってOK
+          year;
+    
         if (cellYear !== year) return;
-
+    
         hasMinorGoalForYear = true;
-
+    
         const isAchieved = rate >= ACHIEVED_THRESHOLD;
         minorCell.isChecked = isAchieved;
         minorCell.achievement = Math.round(Math.min(rate, 1) * 100);
@@ -584,33 +596,29 @@ export const onYearlyActualUpdate = (
           : rate > 0
           ? "in_progress"
           : "not_started";
-
+    
         updated = true;
       });
-
+    
+      // ★ hasMinorGoalForYear の扱いはそのままでOK
       if (hasMinorGoalForYear) {
         const checkedCount = minorChart.cells.filter((c) => c.isChecked).length;
         middleCell.achievement = Math.round(
           (checkedCount / minorChart.cells.length) * 100
         );
       } else {
-        middleCell.achievement = Math.round(
-          Math.min(achievements[metric]!, 1) * 100
-        );
+        middleCell.achievement = Math.round(Math.min(achievements[metric]!, 1) * 100);
       }
-
+    
       middleCell.status =
-        middleCell.achievement >= 100
+        rate >= ACHIEVED_THRESHOLD
           ? "achieved"
-          : middleCell.achievement > 0
+          : rate > 0
           ? "in_progress"
           : "not_started";
-
+    
       updated = true;
     });
-
-    // ★ ③ 大目標の status は ①で決めるので、
-    //    中目標の平均から上書きする処理（A-3 部分）は削除 or コメントアウトしてOK
   });
 
   if (updated) {
