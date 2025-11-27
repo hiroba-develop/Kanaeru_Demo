@@ -1,22 +1,12 @@
 import React, { useState, useEffect } from "react";
-import { Save, Plus, Trash2, Bell, User, Building } from "lucide-react";
+import { Save, User, Building } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 import type {
   InitialSetup,
   CompanySize,
   Industry,
   FinancialKnowledge,
-  TaskType,
 } from "../types";
-
-interface Task {
-  id: number;
-  taskId?: string;
-  name: string;
-  day: number;
-  enabled: boolean;
-  type: TaskType;
-}
 
 // デモ用の設定データ
 const DEMO_SETTING_DATA = {
@@ -33,46 +23,9 @@ const DEMO_SETTING_DATA = {
   capital: 1000000, // 資本金100万円
 };
 
-// デモ用のタスクデータ
-const DEMO_TASKS: Task[] = [
-  {
-    id: 1,
-    taskId: "task-demo-1",
-    name: "売上・経費の記録",
-    day: 5,
-    enabled: true,
-    type: "custom",
-  },
-  {
-    id: 2,
-    taskId: "task-demo-2",
-    name: "銀行口座の残高確認",
-    day: 15,
-    enabled: true,
-    type: "custom",
-  },
-  {
-    id: 3,
-    taskId: "task-demo-3",
-    name: "取引先への支払い",
-    day: 20,
-    enabled: false,
-    type: "custom",
-  },
-];
-
 const Settings: React.FC = () => {
   const { user, updateUserSetup } = useAuth();
   const isNotNormalAccount = user?.role === "1" || user?.role === "2";
-
-  const [tasks, setTasks] = useState<Task[]>(DEMO_TASKS);
-  const [newTaskName, setNewTaskName] = useState("");
-  const [newTaskDay, setNewTaskDay] = useState(1);
-
-  // タスク編集用の状態管理
-  const [editingTaskId, setEditingTaskId] = useState<number | null>(null);
-  const [editingTaskName, setEditingTaskName] = useState("");
-  const [editingTaskDay, setEditingTaskDay] = useState(1);
 
   // 初期設定データの状態管理
   const [setupData, setSetupData] = useState<InitialSetup | null>(null);
@@ -197,113 +150,6 @@ const Settings: React.FC = () => {
 
     loadDemoData();
   }, [user]);
-
-  const handleAddTask = async () => {
-    if (newTaskName.trim()) {
-      const newTask: Task = {
-        id: Date.now(),
-        taskId: `task-demo-${Date.now()}`,
-        name: newTaskName,
-        day: newTaskDay,
-        enabled: true,
-        type: "custom" as TaskType,
-      };
-
-      try {
-        // デモ用の遅延
-        await new Promise((resolve) => setTimeout(resolve, 500));
-
-        setTasks([...tasks, newTask]);
-        setNewTaskName("");
-        setNewTaskDay(1);
-      } catch (err) {
-        console.error("デモタスク追加エラー:", err);
-        alert("タスクの追加中にエラーが発生しました");
-      }
-    }
-  };
-
-  const handleDeleteTask = async (id: number) => {
-    const taskToDelete = tasks.find((task) => task.id === id);
-    if (!taskToDelete) {
-      alert("削除対象のタスクが見つかりません");
-      return;
-    }
-
-    try {
-      // デモ用の遅延
-      await new Promise((resolve) => setTimeout(resolve, 300));
-
-      setTasks(tasks.filter((task) => task.id !== id));
-    } catch (err) {
-      console.error("デモタスク削除エラー:", err);
-      alert("タスクの削除中にエラーが発生しました");
-    }
-  };
-
-  const handleTaskToggle = async (id: number) => {
-    const taskToUpdate = tasks.find((task) => task.id === id);
-    if (!taskToUpdate) {
-      alert("更新対象のタスクが見つかりません");
-      return;
-    }
-
-    try {
-      // デモ用の遅延
-      await new Promise((resolve) => setTimeout(resolve, 300));
-
-      setTasks(
-        tasks.map((task) =>
-          task.id === id ? { ...task, enabled: !task.enabled } : task
-        )
-      );
-    } catch (err) {
-      console.error("デモタスク更新エラー:", err);
-      alert("タスクの更新中にエラーが発生しました");
-    }
-  };
-
-  // タスク編集機能
-  const startEditingTask = (task: Task) => {
-    setEditingTaskId(task.id);
-    setEditingTaskName(task.name);
-    setEditingTaskDay(task.day);
-  };
-
-  const saveEditingTask = async () => {
-    if (editingTaskId && editingTaskName.trim()) {
-      const taskToEdit = tasks.find((t) => t.id === editingTaskId);
-      if (!taskToEdit) {
-        alert("編集対象のタスクが見つかりません");
-        return;
-      }
-
-      try {
-        // デモ用の遅延
-        await new Promise((resolve) => setTimeout(resolve, 300));
-
-        setTasks(
-          tasks.map((task) =>
-            task.id === editingTaskId
-              ? { ...task, name: editingTaskName, day: editingTaskDay }
-              : task
-          )
-        );
-        setEditingTaskId(null);
-        setEditingTaskName("");
-        setEditingTaskDay(1);
-      } catch (err) {
-        console.error("デモタスク更新エラー:", err);
-        alert("タスクの更新中にエラーが発生しました");
-      }
-    }
-  };
-
-  const cancelEditingTask = () => {
-    setEditingTaskId(null);
-    setEditingTaskName("");
-    setEditingTaskDay(1);
-  };
 
   const handleSaveSettings = async () => {
     if (!setupData) {
