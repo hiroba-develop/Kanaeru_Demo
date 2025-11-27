@@ -8,12 +8,12 @@ import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import Layout from "./components/Layout";
 import Dashboard from "./pages/Dashboard";
 import YearlyBudgetActual from "./pages/YearlyBudgetActual";
-import MonthlyBudgetActual from "./pages/MonthlyBudgetActual";
-import Support from "./pages/Support";
+// import MonthlyBudgetActual from "./pages/MonthlyBudgetActual";
+// import Support from "./pages/Support";
 import Settings from "./pages/Settings";
 import Login from "./pages/Login";
 import Setup from "./pages/Setup";
-import Ranking from "./pages/Ranking";
+// import Ranking from "./pages/Ranking";
 import ClientManagement from "./pages/ClientManagement";
 import UserManagement from "./pages/UserManagement";
 import MandalaChart from "./pages/MandalaChart";
@@ -127,7 +127,7 @@ const AppContent: React.FC = () => {
           </ProtectedRoute>
         }
       />
-      <Route
+      {/* <Route
         path="/monthlyBudgetActual"
         element={
           <ProtectedRoute>
@@ -136,8 +136,8 @@ const AppContent: React.FC = () => {
             </Layout>
           </ProtectedRoute>
         }
-      />
-      <Route
+      /> */}
+      {/* <Route
         path="/support"
         element={
           <ProtectedRoute>
@@ -146,7 +146,7 @@ const AppContent: React.FC = () => {
             </Layout>
           </ProtectedRoute>
         }
-      />
+      /> */}
       <Route
         path="/settings"
         element={
@@ -157,7 +157,7 @@ const AppContent: React.FC = () => {
           </ProtectedRoute>
         }
       />
-      <Route
+      {/* <Route
         path="/ranking"
         element={
           <ProtectedRoute>
@@ -166,7 +166,7 @@ const AppContent: React.FC = () => {
             </Layout>
           </ProtectedRoute>
         }
-      />
+      /> */}
       <Route
         path="/clientManagement"
         element={

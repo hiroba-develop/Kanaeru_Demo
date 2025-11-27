@@ -1,15 +1,11 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react"; // ★ useRef を追加
 import { Link, useLocation } from "react-router-dom";
 import {
-  // Home,
   Map,
-
-  // MessageCircle,
   Settings,
   Menu,
   X,
   LogOut,
-  // Trophy,
   Users,
   Briefcase,
   Home,
@@ -26,9 +22,17 @@ interface LayoutProps {
 const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [userRole, setUserRole] = useState<string | null>(null);
+
+  // ★ アバタープレビュー用の state
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+
+  // ★ file input を外から click するための ref
+  const avatarInputRef = useRef<HTMLInputElement | null>(null);
+
   const location = useLocation();
   const isMandalaPage = location.pathname === "/mandalaChart";
   const { logout, user, managedUsers, selectedUser, switchUser } = useAuth();
+
   const MandalaIcon: React.FC<{ className?: string }> = ({
     className = "",
   }) => (
@@ -51,14 +55,44 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   };
 
   useEffect(() => {
-    // cookieからroleを取得してroleを設定
     try {
       const role = getCookie("role");
       setUserRole(role);
     } catch (err) {
       console.error("cookieの解析に失敗:", err);
     }
-  }, [user]); // userオブジェクトの変更も検知
+  }, [user]);
+
+  // ★ user.avatar が変わったらプレビュー初期値も更新
+  useEffect(() => {
+    if (user?.avatar) {
+      setAvatarPreview(user.avatar);
+    }
+  }, [user?.avatar]);
+
+  // ★ 画像クリック時：hidden input を click
+  const handleAvatarClick = () => {
+    avatarInputRef.current?.click();
+  };
+
+  // ★ ファイル選択時
+  const handleAvatarChange: React.ChangeEventHandler<HTMLInputElement> = async (
+    e
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // 1) その場プレビュー用（即時反映）
+    const previewUrl = URL.createObjectURL(file);
+    setAvatarPreview(previewUrl);
+
+    // 2) サーバーにアップロードするならここで API を叩く
+    //    例:
+    // const formData = new FormData();
+    // formData.append("avatar", file);
+    // await fetch("/api/profile/avatar", { method: "POST", body: formData });
+    // → 返却された URL を useAuth の user に反映、など
+  };
 
   const clientNavigation = [
     {
@@ -75,20 +109,6 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       disabled: false,
       roleRequired: ["0", "1", "2"],
     },
-    // {
-    //   name: "シミュレーション",
-    //   href: "/simulation",
-    //   icon: Brain,
-    //   disabled: false,
-    //   roleRequired: ["0", "1", "2"],
-    // },
-    // {
-    //   name: "予実管理(月次)",
-    //   href: "/monthlyBudgetActual",
-    //   icon: BarChart3,
-    //   disabled: false,
-    //   roleRequired: ["0", "1", "2"],
-    // },
     {
       name: "年次PL",
       href: "/yearlyBudgetActual",
@@ -96,14 +116,6 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       disabled: false,
       roleRequired: ["0", "1", "2"],
     },
-
-    // {
-    //   name: "起業動機診断",
-    //   href: "/swipeChoiceComponent",
-    //   icon: Brain,
-    //   disabled: false,
-    //   roleRequired: ["0", "1", "2"],
-    // },
   ];
 
   const adminNavigation = [
@@ -112,49 +124,61 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       href: "/clientManagement",
       icon: Briefcase,
       disabled: false,
-      roleRequired: ["1", "2"], // role="1"の場合のみ表示
+      roleRequired: ["1", "2"],
     },
     {
       name: "ユーザー管理",
       href: "/userManagement",
       icon: Users,
       disabled: false,
-      roleRequired: ["2"], // role="2"の場合のみ表示
+      roleRequired: ["2"],
     },
   ];
 
   const roleFilter = (item: { roleRequired?: string | string[] }) => {
-    // roleRequiredが指定されていない場合は表示
     if (!item.roleRequired) return true;
-    // roleRequiredが配列の場合は、ユーザーのロールが含まれているか確認
     if (Array.isArray(item.roleRequired)) {
       return userRole !== null && item.roleRequired.includes(userRole);
     }
-    // roleRequiredが指定されている場合は、ユーザーのロールと一致する場合のみ表示
     return userRole === item.roleRequired;
   };
 
-  // ユーザーのロールに基づいてフィルタリングされたナビゲーション項目
   const filteredClientNavigation = clientNavigation.filter(roleFilter);
   const filteredAdminNavigation = adminNavigation.filter(roleFilter);
 
-  // ユーザー情報表示コンポーネント（画像に合わせて修正）
+  // ★ ユーザー情報表示コンポーネント（画像クリックでアップロード）
   const userInfo = (
     <div className="p-6 border-b border-gray-200 bg-gray-50">
       <div className="flex flex-col items-center space-y-3">
-        {/* ユーザーアバター - より大きく、中央配置 */}
-        {user?.avatar ? (
-          <img
-            src={user.avatar}
-            alt={user.name}
-            className="h-16 w-16 rounded-full object-cover border-2 border-gray-200"
-          />
-        ) : (
-          <div className="h-16 w-16 rounded-full bg-gray-400 text-white flex items-center justify-center text-xl font-semibold border-2 border-gray-200">
-            {user?.name?.charAt(0) || "U"}
-          </div>
-        )}
-        {/* ユーザー名 - アバターの下に表示 */}
+        {/* クリック可能なアバターラッパー */}
+        <button
+          type="button"
+          onClick={handleAvatarClick}
+          className="relative h-16 w-16 rounded-full border-2 border-gray-200 overflow-hidden group focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+        >
+          {avatarPreview ? (
+            <img
+              src={avatarPreview}
+              alt={user?.name || "avatar"}
+              className="h-full w-full object-cover"
+            />
+          ) : (
+            <div className="h-full w-full bg-gray-400 text-white flex items-center justify-center text-xl font-semibold">
+              {user?.name?.charAt(0) || "U"}
+            </div>
+          )}
+        </button>
+
+        {/* 実際の file input（非表示） */}
+        <input
+          ref={avatarInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={handleAvatarChange}
+        />
+
+        {/* ユーザー名 */}
         <div className="text-center">
           <p className="text-sm font-medium text-gray-700">
             {user?.name || "User Name"}
@@ -164,6 +188,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     </div>
   );
 
+  // userSwitcher はそのまま
   const userSwitcher = (
     <>
       {(userRole === "1" || userRole === "2") && managedUsers.length > 0 && (
@@ -173,7 +198,6 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               value={selectedUser?.id || ""}
               onChange={(e) => {
                 switchUser(e.target.value);
-                // モバイルの場合、選択後にサイドバーを閉じる
                 if (sidebarOpen) {
                   setSidebarOpen(false);
                 }
