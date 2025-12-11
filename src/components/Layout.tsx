@@ -1,19 +1,18 @@
-import React, { useState, useEffect, useRef } from "react"; // ★ useRef を追加
+import React, { useState, useEffect, useRef } from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
   Map,
-  Settings,
   Menu,
   X,
-  LogOut,
   Users,
   Briefcase,
   Home,
 } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
-import headerIcon from "../../public/header_icon.png";
+import headerIcon from "../assets/header_icon.png";
 import { onMandalaGoalUpdate } from "../utils/mandalaIntegration";
 import mandalaIcon from "../assets/mandala_icon.png";
+import settingsIcon from "../assets/settings_icon.png";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -23,10 +22,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [userRole, setUserRole] = useState<string | null>(null);
 
-  // ★ アバタープレビュー用の state
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
-
-  // ★ file input を外から click するための ref
   const avatarInputRef = useRef<HTMLInputElement | null>(null);
 
   const location = useLocation();
@@ -40,6 +36,12 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       src={mandalaIcon}
       alt="Mandala"
       className={`inline-block align-middle ${className}`}
+      style={{
+        width: '24px',
+        height: '24px',
+        borderRadius: '50%',
+        objectFit: 'cover'
+      }}
     />
   );
 
@@ -63,35 +65,24 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     }
   }, [user]);
 
-  // ★ user.avatar が変わったらプレビュー初期値も更新
   useEffect(() => {
     if (user?.avatar) {
       setAvatarPreview(user.avatar);
     }
   }, [user?.avatar]);
 
-  // ★ 画像クリック時：hidden input を click
   const handleAvatarClick = () => {
     avatarInputRef.current?.click();
   };
 
-  // ★ ファイル選択時
   const handleAvatarChange: React.ChangeEventHandler<HTMLInputElement> = async (
     e
   ) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // 1) その場プレビュー用（即時反映）
     const previewUrl = URL.createObjectURL(file);
     setAvatarPreview(previewUrl);
-
-    // 2) サーバーにアップロードするならここで API を叩く
-    //    例:
-    // const formData = new FormData();
-    // formData.append("avatar", file);
-    // await fetch("/api/profile/avatar", { method: "POST", body: formData });
-    // → 返却された URL を useAuth の user に反映、など
   };
 
   const clientNavigation = [
@@ -146,15 +137,13 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const filteredClientNavigation = clientNavigation.filter(roleFilter);
   const filteredAdminNavigation = adminNavigation.filter(roleFilter);
 
-  // ★ ユーザー情報表示コンポーネント（画像クリックでアップロード）
   const userInfo = (
-    <div className="p-6 border-b border-gray-200 bg-gray-50">
-      <div className="flex flex-col items-center space-y-3">
-        {/* クリック可能なアバターラッパー */}
+    <div className="p-4 sm:p-5 lg:p-6 flex justify-center" style={{ background: '#F6FAFC' }}>
+      <div className="flex flex-col items-center space-y-2 sm:space-y-3">
         <button
           type="button"
           onClick={handleAvatarClick}
-          className="relative h-16 w-16 rounded-full border-2 border-gray-200 overflow-hidden group focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+          className="relative rounded-full border-2 border-gray-200 overflow-hidden group focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 w-20 h-20 sm:w-24 sm:h-24"
         >
           {avatarPreview ? (
             <img
@@ -163,24 +152,21 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               className="h-full w-full object-cover"
             />
           ) : (
-            <div className="h-full w-full bg-gray-400 text-white flex items-center justify-center text-xl font-semibold">
+            <div className="h-full w-full bg-gray-400 text-white flex items-center justify-center text-lg sm:text-xl font-semibold">
               {user?.name?.charAt(0) || "U"}
             </div>
           )}
         </button>
-
-        {/* 実際の file input（非表示） */}
+  
         <input
           ref={avatarInputRef}
           type="file"
           accept="image/*"
           className="hidden"
           onChange={handleAvatarChange}
-        />
-
-        {/* ユーザー名 */}
+        />  
         <div className="text-center">
-          <p className="text-sm font-medium text-gray-700">
+          <p className="text-xs sm:text-sm text-gray-800">
             {user?.name || "User Name"}
           </p>
         </div>
@@ -188,11 +174,10 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     </div>
   );
 
-  // userSwitcher はそのまま
   const userSwitcher = (
     <>
       {(userRole === "1" || userRole === "2") && managedUsers.length > 0 && (
-        <div className="p-3 xl:p-4 bg-gray-50">
+        <div className="px-3 py-2 sm:p-3 lg:p-4" style={{ background: '#F6FAFC' }}>
           <div className="relative">
             <select
               value={selectedUser?.id || ""}
@@ -225,199 +210,97 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* ヘッダー */}
-      <header className="bg-white border-b border-border px-3 sm:px-4 lg:px-6 py-3 sm:py-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center">
-            <button
-              type="button"
-              className="lg:hidden p-1.5 sm:p-2 rounded-md text-text hover:bg-sub2"
-              onClick={() => setSidebarOpen(true)}
+      <div className="flex">
+        {/* サイドバー（PC） - 固定配置、z-indexを高く */}
+        <aside className="hidden lg:flex lg:flex-shrink-0 fixed left-0 top-0 h-screen z-30">
+          <div 
+            className="flex flex-col h-full w-52 xl:w-56"
+            style={{
+              background: '#F6FAFC',
+              boxShadow: '0px 4px 12px 0px rgba(124, 124, 124, 0.25)',
+              overflowX: 'hidden'
+            }}
+          >
+            {/* ロゴエリア - 中央揃え */}
+            <div 
+              className="flex items-center justify-center h-16 xl:h-20"
             >
-              <Menu className="h-5 w-5 sm:h-6 sm:w-6" />
-            </button>
-            <div className="flex items-center ml-2 lg:ml-0">
               <img
                 src={headerIcon}
                 alt="Kanaeru"
-                className="h-8 sm:h-10 lg:h-12"
+                className="h-7 xl:h-8 w-auto object-contain"
               />
-
-              <span className="ml-2 text-sm text-blue-600 font-medium">
-                (デモ版)
-              </span>
             </div>
-          </div>
 
-          <div className="flex items-center space-x-1 sm:space-x-2 lg:space-x-4">
-            {isMandalaPage && (
-              <button
-                onClick={() => {
-                  onMandalaGoalUpdate();
-                  alert("年次予実管理の目標を更新しました。");
-                }}
-                className="px-3 py-1.5 rounded-md text-sm font-medium bg-white text-primary border border-primary transition-colors"
-              >
-                目標を更新
-              </button>
-            )}
-            {/* 設定ボタン */}
-            <Link
-              to="/settings"
-              className="p-1.5 sm:p-2 rounded-md text-text hover:bg-sub2 transition-colors"
-              title="設定"
-            >
-              <Settings className="h-5 w-5 sm:h-6 sm:w-6" />
-            </Link>
-
-            {/* ログアウトボタン */}
-            <button
-              onClick={() => {
-                if (window.confirm("ログアウトしますか？")) {
-                  logout();
-                }
-              }}
-              className="p-1.5 sm:p-2 rounded-md text-text hover:bg-sub2 transition-colors"
-              title="ログアウト"
-            >
-              <LogOut className="h-5 w-5 sm:h-6 sm:w-6" />
-            </button>
-          </div>
-        </div>
-      </header>
-
-      <div className="flex">
-        {/* サイドバー（PC） - 背景色を薄いグレーに変更 */}
-        <aside className="hidden lg:flex lg:flex-shrink-0">
-          <div className="w-56 xl:w-64 bg-gray-50 border-r border-gray-200 flex flex-col">
-            {userInfo}
-            {userSwitcher}
-            <nav className="p-3 xl:p-4 space-y-2 flex-1">
-              {filteredClientNavigation.map((item) => {
-                const isActive = location.pathname === item.href;
-
-                if (item.disabled) {
-                  return (
-                    <div
-                      key={item.name}
-                      className="flex items-start px-3 xl:px-4 py-2.5 xl:py-3 rounded-lg cursor-not-allowed opacity-50"
-                    >
-                      <item.icon className="h-4 w-4 xl:h-5 xl:w-5 mr-2 xl:mr-3 text-gray-400 mt-0.5" />
-                      <div className="flex flex-col">
-                        <span className="text-sm xl:text-base text-gray-400">
-                          {item.name}
-                        </span>
-                        <span className="text-xs text-red-500 font-small">
-                          COMING SOON
-                        </span>
-                      </div>
-                    </div>
-                  );
-                }
-
-                return (
-                  <Link
-                    key={item.name}
-                    to={item.href}
-                    className={`flex items-center px-3 xl:px-4 py-2.5 xl:py-3 rounded-lg transition-colors ${
-                      isActive
-                        ? "bg-white text-primary shadow-sm border border-primary"
-                        : "text-gray-700 hover:bg-gray-100"
-                    }`}
-                  >
-                    <item.icon className="h-4 w-4 xl:h-5 xl:w-5 mr-2 xl:mr-3" />
-                    <span className="text-sm xl:text-base">{item.name}</span>
-                  </Link>
-                );
-              })}
-
-              {filteredAdminNavigation.length > 0 && (
-                <hr className="border-gray-200" />
-              )}
-
-              {filteredAdminNavigation.map((item) => {
-                const isActive = location.pathname === item.href;
-
-                if (item.disabled) {
-                  return (
-                    <div
-                      key={item.name}
-                      className="flex items-start px-3 xl:px-4 py-2.5 xl:py-3 rounded-lg cursor-not-allowed opacity-50"
-                    >
-                      <item.icon className="h-4 w-4 xl:h-5 xl:w-5 mr-2 xl:mr-3 text-gray-400 mt-0.5" />
-                      <div className="flex flex-col">
-                        <span className="text-sm xl:text-base text-gray-400">
-                          {item.name}
-                        </span>
-                        <span className="text-xs text-red-500 font-small">
-                          COMING SOON
-                        </span>
-                      </div>
-                    </div>
-                  );
-                }
-
-                return (
-                  <Link
-                    key={item.name}
-                    to={item.href}
-                    className={`flex items-center px-3 xl:px-4 py-2.5 xl:py-3 rounded-lg transition-colors ${
-                      isActive
-                        ? "bg-white text-primary shadow-sm border border-primary"
-                        : "text-gray-700 hover:bg-gray-100"
-                    }`}
-                  >
-                    <item.icon className="h-4 w-4 xl:h-5 xl:w-5 mr-2 xl:mr-3" />
-                    <span className="text-sm xl:text-base">{item.name}</span>
-                  </Link>
-                );
-              })}
-            </nav>
-          </div>
-        </aside>
-
-        {/* モバイルサイドバー - 背景色を薄いグレーに変更 */}
-        {sidebarOpen && (
-          <div className="fixed inset-0 z-50 lg:hidden">
-            <div
-              className="fixed inset-0 bg-black bg-opacity-50"
-              onClick={() => setSidebarOpen(false)}
-            />
-            <div className="fixed inset-y-0 left-0 w-64 sm:w-72 bg-gray-50 shadow-xl flex flex-col">
-              <div className="flex items-center justify-between p-3 sm:p-4 border-b border-gray-200">
-                <div className="flex items-center">
-                  {/* <img
-                    src="/header_icon.png"
-                    alt="Kanaeru"
-                    className="h-6 sm:h-8"
-                  /> */}
-                  <span
-                    className="ml-1 font-bold"
-                    style={{
-                      fontFamily:
-                        '"Hiragino UD Sans", "ヒラギノUD角ゴ", "Inter", "Roboto", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-                      fontSize: "18px", // モバイルなので少し小さめ
-                      color: "#13AE67",
-                      letterSpacing: "0.03em",
-                    }}
-                  >
-                    kanaeru
-                  </span>
-                  <span className="ml-2 text-sm text-blue-600 font-medium">
-                    (デモ版)
-                  </span>
-                </div>
+            {/* userInfo - 背景色と中央揃え */}
+            <div className="p-4 xl:p-6 flex justify-center" style={{ background: '#F6FAFC' }}>
+              <div className="flex flex-col items-center space-y-2 xl:space-y-3">
                 <button
                   type="button"
-                  className="p-1.5 sm:p-2 rounded-md text-gray-700 hover:bg-gray-100"
-                  onClick={() => setSidebarOpen(false)}
+                  onClick={handleAvatarClick}
+                  className="relative rounded-full border-2 border-gray-200 overflow-hidden group focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 w-20 h-20 xl:w-24 xl:h-24"
                 >
-                  <X className="h-5 w-5 sm:h-6 sm:w-6" />
+                  {avatarPreview ? (
+                    <img
+                      src={avatarPreview}
+                      alt={user?.name || "avatar"}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <div className="h-full w-full bg-gray-400 text-white flex items-center justify-center text-lg xl:text-xl font-semibold">
+                      {user?.name?.charAt(0) || "U"}
+                    </div>
+                  )}
                 </button>
+
+                <input
+                  ref={avatarInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleAvatarChange}
+                />
+                <div className="text-center">
+                  <p className="text-xs xl:text-sm text-gray-800">
+                    {user?.name || "User Name"}
+                  </p>
+                </div>
               </div>
-              {userInfo}
-              {userSwitcher}
-              <nav className="p-3 sm:p-4 space-y-2 flex-1 overflow-y-auto">
+            </div>
+
+            {/* userSwitcher - 背景色を調整 */}
+            {(userRole === "1" || userRole === "2") && managedUsers.length > 0 && (
+              <div className="px-3 py-2 xl:p-4" style={{ background: '#F6FAFC' }}>
+                <div className="relative">
+                  <select
+                    value={selectedUser?.id || ""}
+                    onChange={(e) => {
+                      switchUser(e.target.value);
+                      if (sidebarOpen) {
+                        setSidebarOpen(false);
+                      }
+                    }}
+                    className="w-full text-xs xl:text-sm border border-gray-300 rounded px-2 py-1.5 pr-8 appearance-none bg-white focus:outline-none focus:ring-1 focus:ring-primary"
+                    style={{
+                      backgroundImage:
+                        'url(\'data:image/svg+xml;utf8,<svg fill="black" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/><path d="M0 0h24v24H0z" fill="none"/></svg>\')',
+                      backgroundRepeat: "no-repeat",
+                      backgroundPosition: "calc(100% - 4px) center",
+                      backgroundSize: "16px",
+                    }}
+                  >
+                    {managedUsers.map((managedUser) => (
+                      <option key={managedUser.id} value={managedUser.id}>
+                        表示中: {managedUser.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            )}
+
+            <nav className="flex-1 overflow-y-auto" style={{ overflowX: 'hidden' }}>
+              <div className="space-y-1 xl:space-y-2 pl-6 xl:pl-9 pr-3 pt-3">
                 {filteredClientNavigation.map((item) => {
                   const isActive = location.pathname === item.href;
 
@@ -425,14 +308,14 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                     return (
                       <div
                         key={item.name}
-                        className="flex items-start px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg cursor-not-allowed opacity-50"
+                        className="flex items-start py-2 xl:py-2.5 rounded-lg cursor-not-allowed opacity-50"
                       >
-                        <item.icon className="h-5 w-5 mr-3 text-gray-400 mt-0.5" />
+                        <item.icon className="h-4 w-4 xl:h-5 xl:w-5 mr-2 xl:mr-3 text-gray-400 mt-0.5 flex-shrink-0" />
                         <div className="flex flex-col">
-                          <span className="text-sm sm:text-base text-gray-400">
+                          <span className="text-xs xl:text-sm text-gray-400">
                             {item.name}
                           </span>
-                          <span className="text-xs text-red-500 font-small">
+                          <span className="text-[10px] xl:text-xs text-red-500 font-small">
                             COMING SOON
                           </span>
                         </div>
@@ -444,21 +327,20 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                     <Link
                       key={item.name}
                       to={item.href}
-                      className={`flex items-center px-3 xl:px-4 py-2.5 xl:py-3 rounded-lg transition-colors ${
+                      className={`flex items-center py-2 xl:py-2.5 rounded-none transition-colors -ml-6 xl:-ml-9 pl-6 xl:pl-9 ${
                         isActive
-                          ? "bg-white text-primary shadow-sm border border-primary"
+                          ? "bg-white text-primary"
                           : "text-gray-700 hover:bg-gray-100"
                       }`}
-                      onClick={() => setSidebarOpen(false)}
                     >
-                      <item.icon className="h-5 w-5 mr-3" />
-                      <span className="text-sm sm:text-base">{item.name}</span>
+                      <item.icon className="h-4 w-4 xl:h-5 xl:w-5 mr-2 xl:mr-3 flex-shrink-0" />
+                      <span className="text-xs xl:text-sm">{item.name}</span>
                     </Link>
                   );
                 })}
 
                 {filteredAdminNavigation.length > 0 && (
-                  <hr className="border-gray-200" />
+                  <hr className="border-gray-200 my-2" />
                 )}
 
                 {filteredAdminNavigation.map((item) => {
@@ -468,14 +350,14 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                     return (
                       <div
                         key={item.name}
-                        className="flex items-start px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg cursor-not-allowed opacity-50"
+                        className="flex items-start py-2 xl:py-2.5 rounded-lg cursor-not-allowed opacity-50"
                       >
-                        <item.icon className="h-5 w-5 mr-3 text-gray-400 mt-0.5" />
+                        <item.icon className="h-4 w-4 xl:h-5 xl:w-5 mr-2 xl:mr-3 text-gray-400 mt-0.5 flex-shrink-0" />
                         <div className="flex flex-col">
-                          <span className="text-sm sm:text-base text-gray-400">
+                          <span className="text-xs xl:text-sm text-gray-400">
                             {item.name}
                           </span>
-                          <span className="text-xs text-red-500 font-small">
+                          <span className="text-[10px] xl:text-xs text-red-500 font-small">
                             COMING SOON
                           </span>
                         </div>
@@ -484,30 +366,225 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                   }
 
                   return (
-                    <Link
-                      key={item.name}
-                      to={item.href}
-                      className={`flex items-center px-3 xl:px-4 py-2.5 xl:py-3 rounded-lg transition-colors ${
-                        isActive
-                          ? "bg-white text-primary shadow-sm border border-primary"
-                          : "text-gray-700 hover:bg-gray-100"
-                      }`}
-                      onClick={() => setSidebarOpen(false)}
-                    >
-                      <item.icon className="h-5 w-5 mr-3" />
-                      <span className="text-sm sm:text-base">{item.name}</span>
-                    </Link>
+                  <Link
+                    key={item.name}
+                    to={item.href}
+                    className={`flex items-center py-2 xl:py-2.5 rounded-none transition-colors -ml-6 xl:-ml-9 pl-6 xl:pl-9 ${
+                      isActive
+                        ? "bg-white text-primary"
+                        : "text-gray-700 hover:bg-gray-100"
+                    }`}
+                  >
+                    <item.icon className="h-4 w-4 xl:h-5 xl:w-5 mr-2 xl:mr-3 flex-shrink-0" />
+                    <span className="text-xs xl:text-sm">{item.name}</span>
+                  </Link>
                   );
                 })}
+              </div>
+            </nav>
+          </div>
+        </aside>
+
+        {/* メインコンテンツエリア（サイドバーの幅分左にマージン） */}
+        <div className="flex-1 lg:ml-52 xl:ml-56">
+          {/* ヘッダー */}
+          <header 
+            className="px-3 sm:px-4 lg:px-6 h-14 sm:h-16 lg:h-20 flex items-center lg:pl-6"
+            style={{
+              background: '#F6FAFC'
+            }}
+          >
+            <div className="flex items-center justify-between h-full w-full">
+              <div className="flex items-center">
+                <button
+                  type="button"
+                  className="lg:hidden p-1.5 sm:p-2 rounded-md text-text hover:bg-sub2"
+                  onClick={() => setSidebarOpen(true)}
+                >
+                  <Menu className="h-5 w-5 sm:h-6 sm:w-6" />
+                </button>
+                <div className="flex items-center ml-2 lg:ml-0">
+                  <img
+                    src={headerIcon}
+                    alt="Kanaeru"
+                    className="h-6 sm:h-8 w-auto lg:hidden"
+                  />
+
+                  <span className="ml-2 text-xs sm:text-sm text-blue-600 font-medium">
+                    (デモ版)
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex items-center space-x-2 sm:space-x-3 lg:space-x-4">
+                {isMandalaPage && (
+                  <button
+                    onClick={() => {
+                      onMandalaGoalUpdate();
+                      alert("目標を更新しました。");
+                    }}
+                    className="text-xs sm:text-sm font-medium bg-white text-primary border border-primary transition-colors hover:bg-primary/5 px-3 py-1.5 sm:px-4 sm:py-2 rounded-full whitespace-nowrap"
+                    style={{
+                      background: '#F6FAFC'
+                    }}
+                  >
+                    目標を更新する
+                  </button>
+                )}
+                
+                <button
+                  onClick={() => {
+                    if (window.confirm("ログアウトしますか？")) {
+                      logout();
+                    }
+                  }}
+                  className="hover:opacity-80 transition-opacity text-xs sm:text-sm text-gray-800 whitespace-nowrap"
+                >
+                  ログアウト
+                </button>
+
+                <Link
+                  to="/settings"
+                  className="p-1.5 sm:p-2 rounded-md hover:bg-sub2 transition-colors flex items-center justify-center"
+                  title="設定"
+                >
+                  <img 
+                    src={settingsIcon} 
+                    alt="設定" 
+                    className="h-5 w-5 sm:h-6 sm:w-6 object-contain"
+                  />
+                </Link>
+              </div>
+            </div>
+          </header>
+
+          {/* メインコンテンツ */}
+          <main className="overflow-x-auto">
+            {children}
+          </main>
+        </div>
+
+        {/* モバイルサイドバー */}
+        {sidebarOpen && (
+          <div className="fixed inset-0 z-50 lg:hidden">
+            <div
+              className="fixed inset-0 bg-black bg-opacity-50"
+              onClick={() => setSidebarOpen(false)}
+            />
+            <div 
+              className="fixed inset-y-0 left-0 shadow-xl flex flex-col w-4/5 max-w-xs sm:max-w-sm"
+              style={{
+                background: '#F6FAFC',
+                boxShadow: '0px 4px 12px 0px rgba(124, 124, 124, 0.25)',
+                overflowX: 'hidden'
+              }}
+            >
+              <div className="flex items-center justify-between px-3 py-2 sm:p-4 h-14 sm:h-16">
+                <div className="flex-1 flex justify-center">
+                  <img
+                    src={headerIcon}
+                    alt="Kanaeru"
+                    className="h-6 sm:h-8 w-auto object-contain"
+                  />
+                </div>
+                <button
+                  type="button"
+                  className="p-1.5 sm:p-2 rounded-md text-gray-700 hover:bg-gray-100 absolute right-3"
+                  onClick={() => setSidebarOpen(false)}
+                >
+                  <X className="h-5 w-5 sm:h-6 sm:w-6" />
+                </button>
+              </div>
+              {userInfo}
+              {userSwitcher}
+              <nav className="flex-1 overflow-y-auto" style={{ overflowX: 'hidden' }}>
+                <div className="space-y-1 sm:space-y-2 pl-6 sm:pl-9 pr-3 pt-3">
+                  {filteredClientNavigation.map((item) => {
+                    const isActive = location.pathname === item.href;
+
+                    if (item.disabled) {
+                      return (
+                        <div
+                          key={item.name}
+                          className="flex items-start py-2 sm:py-2.5 rounded-lg cursor-not-allowed opacity-50"
+                        >
+                          <item.icon className="h-4 w-4 sm:h-5 sm:w-5 mr-2 sm:mr-3 text-gray-400 mt-0.5 flex-shrink-0" />
+                          <div className="flex flex-col">
+                            <span className="text-xs sm:text-sm text-gray-400">
+                              {item.name}
+                            </span>
+                            <span className="text-[10px] sm:text-xs text-red-500 font-small">
+                              COMING SOON
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <Link
+                        key={item.name}
+                        to={item.href}
+                        className={`flex items-center py-2 sm:py-2.5 rounded-none transition-colors -ml-6 sm:-ml-9 pl-6 sm:pl-9 ${
+                          isActive
+                            ? "bg-white text-primary"
+                            : "text-gray-700 hover:bg-gray-100"
+                        }`}
+                        onClick={() => setSidebarOpen(false)}
+                      >
+                        <item.icon className="h-4 w-4 sm:h-5 sm:w-5 mr-2 sm:mr-3 flex-shrink-0" />
+                        <span className="text-xs sm:text-sm">{item.name}</span>
+                      </Link>
+                    );
+                  })}
+
+                  {filteredAdminNavigation.length > 0 && (
+                    <hr className="border-gray-200 my-2" />
+                  )}
+
+                  {filteredAdminNavigation.map((item) => {
+                    const isActive = location.pathname === item.href;
+
+                    if (item.disabled) {
+                      return (
+                        <div
+                          key={item.name}
+                          className="flex items-start py-2 sm:py-2.5 rounded-lg cursor-not-allowed opacity-50"
+                        >
+                          <item.icon className="h-4 w-4 sm:h-5 sm:w-5 mr-2 sm:mr-3 text-gray-400 mt-0.5 flex-shrink-0" />
+                          <div className="flex flex-col">
+                            <span className="text-xs sm:text-sm text-gray-400">
+                              {item.name}
+                            </span>
+                            <span className="text-[10px] sm:text-xs text-red-500 font-small">
+                              COMING SOON
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <Link
+                        key={item.name}
+                        to={item.href}
+                        className={`flex items-center py-2 sm:py-2.5 rounded-none transition-colors -ml-6 sm:-ml-9 pl-6 sm:pl-9 ${
+                          isActive
+                            ? "bg-white text-primary"
+                            : "text-gray-700 hover:bg-gray-100"
+                        }`}
+                        onClick={() => setSidebarOpen(false)}
+                      >
+                        <item.icon className="h-4 w-4 sm:h-5 sm:w-5 mr-2 sm:mr-3 flex-shrink-0" />
+                        <span className="text-xs sm:text-sm">{item.name}</span>
+                      </Link>
+                    );
+                  })}
+                </div>
               </nav>
             </div>
           </div>
         )}
-
-        {/* メインコンテンツ */}
-        <main className="flex-1 p-3 sm:p-4 lg:p-6 overflow-x-auto">
-          {children}
-        </main>
       </div>
     </div>
   );

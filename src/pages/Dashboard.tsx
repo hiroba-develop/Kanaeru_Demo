@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { BarChart3 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
-import complate_icon from "../../public/complate_icon.png";
+import complate_icon from "../assets/complate_icon.png";
 import { loadPlPlan, loadPlActual } from "../utils/mandalaIntegration";
 
 type MandalaMajorCell = {
@@ -35,11 +35,18 @@ const getMandalaGrid = () => {
 // 8文字ごとに改行コードを入れる
 const formatTitleBy8Chars = (text: string): string => {
   if (!text) return "";
+  
+  // すでに改行が含まれている場合はそのまま返す
+  if (text.includes('\n')) {
+    return text;
+  }
+  
+  // 改行がない場合のみ8文字ごとに改行を追加
   const chunks: string[] = [];
   for (let i = 0; i < text.length; i += 8) {
     chunks.push(text.slice(i, i + 8));
   }
-  return chunks.join("\n"); // 改行コードで結合
+  return chunks.join("\n");
 };
 
 const Dashboard: React.FC = () => {
@@ -57,6 +64,11 @@ const Dashboard: React.FC = () => {
   });
 
   const mandalaGrid = getMandalaGrid();
+
+  const formatCurrency = (amount: number): string => {
+    const manyen = Math.round(amount / 10000); // 万円単位に変換
+    return manyen.toLocaleString('ja-JP'); // カンマ区切りで表示
+  };
 
   // PL データを読み込んで表示用データを設定
   useEffect(() => {
@@ -113,10 +125,10 @@ const Dashboard: React.FC = () => {
             今日、どっちチェックする?
           </h2>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 bg-">
             {/* マンダラチャート セクション */}
             <div
-              className="card cursor-pointer hover:shadow-card-hover transition-all group"
+              className="card bg-background cursor-pointer hover:shadow-card-hover transition-all group"
               onClick={() => navigate("/mandalaChart")}
             >
               <h2 className="text-heading font-bold text-text mb-6">
@@ -130,7 +142,13 @@ const Dashboard: React.FC = () => {
                     return (
                       <div
                         key="center"
-                        className="aspect-square bg-gradient-to-br from-achieved to-achieved/70 rounded-card-lg flex items-center justify-center p-2"
+                        className="aspect-square flex items-center justify-center p-2"
+                        style={{
+                          borderRadius: '20px',
+                          boxShadow: '0px 4px 12px 0px rgba(72, 82, 84, 0.1)',
+                          border: 'none',
+                          background: '#F067A6'
+                        }}
                       >
                         <p className="text-white text-center text-note font-semibold line-clamp-3 whitespace-pre-line">
                           {formatTitleBy8Chars(
@@ -151,14 +169,13 @@ const Dashboard: React.FC = () => {
                   return (
                     <div
                       key={index}
-                      className={`relative aspect-square rounded-card-lg p-2 overflow-hidden flex items-center justify-center border transition-all
-          ${
-            isCompleted
-              ? "bg-achieved/5 border-achieved/30"
-              : hasContent
-              ? "bg-primary/5 border-primary/30"
-              : "bg-background border-border"
-          }`}
+                      className="relative aspect-square p-2 overflow-hidden flex items-center justify-center transition-all"
+                      style={{
+                        borderRadius: '20px',
+                        boxShadow: '0px 4px 12px 0px rgba(72, 82, 84, 0.1)',
+                        border: 'none',
+                        background: '#FFFFFF'
+                      }}
                     >
                       {isCompleted && (
                         <img
@@ -175,13 +192,13 @@ const Dashboard: React.FC = () => {
 
                       <p
                         className={`relative z-10 text-center text-note font-medium line-clamp-3 whitespace-pre-line
-    ${
-      isCompleted
-        ? "text-achieved"
-        : hasContent
-        ? "text-primary"
-        : "text-text/50"
-    }`}
+                        ${
+                          isCompleted
+                            ? "text-achieved"
+                            : hasContent
+                            ? "text-primary"
+                            : "text-text/50"
+                        }`}
                       >
                         {hasContent ? formatTitleBy8Chars(cell!.title) : ""}
                       </p>
@@ -234,14 +251,10 @@ const Dashboard: React.FC = () => {
                   </div>
                   <div className="flex justify-between mt-1 text-note text-text/70">
                     <span>
-                      実績:¥
-                      {(currentYearData.revenueActual / 1_000_000).toFixed(1)}
-                      百万円
+                      実績: {formatCurrency(currentYearData.revenueActual)}万円
                     </span>
                     <span>
-                      目標:¥
-                      {(currentYearData.revenueTarget / 1_000_000).toFixed(1)}
-                      百万円
+                      目標: {formatCurrency(currentYearData.revenueTarget)}万円
                     </span>
                   </div>
                 </div>
@@ -264,18 +277,10 @@ const Dashboard: React.FC = () => {
                   </div>
                   <div className="flex justify-between mt-1 text-note text-text/70">
                     <span>
-                      実績: ¥
-                      {(currentYearData.grossProfitActual / 1_000_000).toFixed(
-                        1
-                      )}
-                      百万円
+                      実績: {formatCurrency(currentYearData.grossProfitActual)}万円
                     </span>
                     <span>
-                      目標: ¥
-                      {(currentYearData.grossProfitTarget / 1_000_000).toFixed(
-                        1
-                      )}
-                      百万円
+                      目標: {formatCurrency(currentYearData.grossProfitTarget)}万円
                     </span>
                   </div>
                 </div>
@@ -300,18 +305,10 @@ const Dashboard: React.FC = () => {
                   </div>
                   <div className="flex justify-between mt-1 text-note text-text/70">
                     <span>
-                      実績: ¥
-                      {(
-                        currentYearData.operatingProfitActual / 1_000_000
-                      ).toFixed(1)}
-                      百万円
+                      実績: {formatCurrency(currentYearData.operatingProfitActual)}万円
                     </span>
                     <span>
-                      目標: ¥
-                      {(
-                        currentYearData.operatingProfitTarget / 1_000_000
-                      ).toFixed(1)}
-                      百万円
+                      目標: {formatCurrency(currentYearData.operatingProfitTarget)}万円
                     </span>
                   </div>
                 </div>

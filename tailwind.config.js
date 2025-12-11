@@ -32,7 +32,8 @@ export default {
           800: "#1E1F1F", // 統一グレー
           900: "#111827",
         },
-        background: "#F5F8F9", // 背景白
+        //background: "#F5F8F9", // 背景白
+        background: "#F6FAFC", // 背景グレー
         text: "#1E1F1F", // 統一グレー
         border: "#E0E0E0",
         success: "#13AE67", // primaryと統一

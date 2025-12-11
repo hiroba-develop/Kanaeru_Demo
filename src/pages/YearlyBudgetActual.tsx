@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { Save, Navigation } from "lucide-react";
+import { Save, Map } from "lucide-react";
 import {
   LineChart,
   Line,
@@ -215,6 +215,35 @@ const YearlyBudgetActual: React.FC = () => {
   const [editingCell, setEditingCell] = useState<string | null>(null);
 
   const [pendingEdits, setPendingEdits] = useState<PendingEdits>({});
+  const [chartType, setChartType] = useState<"revenue" | "grossProfit" | "operatingProfit">("revenue");
+
+  // グラフのY軸最大値を動的に計算
+  const yAxisDomain = React.useMemo((): [number, number] => {
+    if (targets.length === 0) {
+      console.log('targets is empty');
+      return [0, 70000000];
+    }
+    
+    let maxValue = 0;
+    targets.forEach((t) => {
+      if (chartType === "revenue") {
+        maxValue = Math.max(maxValue, t.revenueTarget || 0, t.revenueActual || 0);
+      } else if (chartType === "grossProfit") {
+        maxValue = Math.max(maxValue, t.grossProfitTarget || 0, t.grossProfitActual || 0);
+      } else {
+        maxValue = Math.max(maxValue, t.operatingProfitTarget || 0, t.operatingProfitActual || 0);
+      }
+    });
+    
+    console.log('maxValue:', maxValue);
+    
+    // 最大値に20%の余裕を持たせ、100万単位で切り上げ
+    const upperBound = Math.ceil(maxValue * 1.2 / 1000000) * 1000000;
+    const finalBound = Math.max(upperBound, 10000000); // 最低でも1000万
+    
+    console.log('finalBound:', finalBound);
+    return [0, finalBound];
+  }, [targets, chartType]);
 
   // データロード
   useEffect(() => {
@@ -266,6 +295,64 @@ const YearlyBudgetActual: React.FC = () => {
 
     loadData();
   }, [selectedUser]);
+  
+  useEffect(() => {
+    const handlePlPlanUpdate = () => {
+      console.log('pl-plan-updated event received, reloading...');
+      
+      if (!selectedUser) return;
+      
+      setIsLoading(true);
+      
+      const loadData = async () => {
+        try {
+          await new Promise((resolve) => setTimeout(resolve, 300));
+          
+          const plPlan = loadPlPlan();
+          const plActual = loadPlActual();
+          
+          console.log('Reloaded plPlan:', plPlan);
+          console.log('Reloaded plActual:', plActual);
+
+          if (plPlan) {
+            const yearlyTargets: YearlyData[] = plPlan.yearly.map((y) => {
+              const actualData = plActual?.yearly.find((a) => a.year === y.year);
+
+              return {
+                year: y.year,
+                revenueTarget: y.revenueTarget,
+                revenueActual: actualData?.revenueActual || 0,
+                grossProfitTarget: y.grossProfitTarget,
+                grossProfitActual: actualData?.grossProfitActual || 0,
+                operatingProfitTarget: y.operatingProfitTarget,
+                operatingProfitActual: actualData?.operatingProfitActual || 0,
+                netWorthTarget: y.netWorthTarget,
+                netWorthActual: actualData?.netWorthActual || 0,
+                phase: y.year <= 3 ? "創業期" : y.year <= 5 ? "転換期" : "成長期",
+              };
+            });
+
+            setTargets(yearlyTargets);
+          } else {
+            const data = getDemoDataForUser(selectedUser.id);
+            setTargets(JSON.parse(JSON.stringify(data.yearlyTargets)));
+          }
+        } catch (err) {
+          console.error('Reload error:', err);
+        } finally {
+          setIsLoading(false);
+        }
+      };
+      
+      loadData();
+    };
+
+    window.addEventListener('pl-plan-updated', handlePlPlanUpdate);
+    
+    return () => {
+      window.removeEventListener('pl-plan-updated', handlePlPlanUpdate);
+    };
+  }, [selectedUser]);
 
   // セル更新
   const handleCellUpdate = (
@@ -305,68 +392,121 @@ const YearlyBudgetActual: React.FC = () => {
       alert("変更がありません");
       return;
     }
-
+  
     try {
       setIsSaving(true);
       await new Promise((resolve) => setTimeout(resolve, 500));
-
-      // 既存の実績データを読み込む
+  
+      // 既存のPL計画と実績データを読み込む
+      let plPlan = loadPlPlan();
       let plActual = loadPlActual();
+      
+      // plPlanが存在しない場合は、現在のtargetsから初期化
+      if (!plPlan) {
+        plPlan = {
+          yearly: targets.map(t => ({
+            year: t.year,
+            revenueTarget: t.revenueTarget,
+            grossProfitTarget: t.grossProfitTarget,
+            operatingProfitTarget: t.operatingProfitTarget,
+            netWorthTarget: t.netWorthTarget,
+          })),
+          tenYearTargetNetWorth: targets[9]?.netWorthTarget || 50000000, // 10年目の純資産目標
+        };
+      }
+      
       if (!plActual) {
         plActual = { yearly: [] };
       }
-
+  
       let mandalaUpdated = false;
-
+      let targetUpdated = false;
+  
       // pendingEditsを反映
       Object.entries(pendingEdits).forEach(([yearStr, edits]) => {
         const year = parseInt(yearStr, 10);
         const currentData = targets.find((t) => t.year === year);
         if (!currentData) return;
-
-        const updatedActual = {
-          year,
-          revenueActual: edits.revenueActual ?? currentData.revenueActual,
-          grossProfitActual:
-            edits.grossProfitActual ?? currentData.grossProfitActual,
-          operatingProfitActual:
-            edits.operatingProfitActual ?? currentData.operatingProfitActual,
-          netWorthActual: edits.netWorthActual ?? currentData.netWorthActual,
-        };
-
-        // pl_actual_v1に保存
-        const existingIndex = plActual!.yearly.findIndex(
-          (a) => a.year === year
-        );
-        if (existingIndex >= 0) {
-          plActual!.yearly[existingIndex] = updatedActual;
-        } else {
-          plActual!.yearly.push(updatedActual);
+  
+        // 目標値フィールドが編集されているかチェック
+        const hasTargetEdit =
+          edits.revenueTarget !== undefined ||
+          edits.grossProfitTarget !== undefined ||
+          edits.operatingProfitTarget !== undefined ||
+          edits.netWorthTarget !== undefined;
+  
+        if (hasTargetEdit) {
+          targetUpdated = true;
+          
+          // pl_plan_v1に保存
+          const updatedPlan = {
+            year,
+            revenueTarget: edits.revenueTarget ?? currentData.revenueTarget,
+            grossProfitTarget: edits.grossProfitTarget ?? currentData.grossProfitTarget,
+            operatingProfitTarget: edits.operatingProfitTarget ?? currentData.operatingProfitTarget,
+            netWorthTarget: edits.netWorthTarget ?? currentData.netWorthTarget,
+          };
+  
+          const existingPlanIndex = plPlan!.yearly.findIndex((p) => p.year === year);
+          if (existingPlanIndex >= 0) {
+            plPlan!.yearly[existingPlanIndex] = updatedPlan;
+          } else {
+            plPlan!.yearly.push(updatedPlan);
+          }
+          
+          // 10年目の純資産目標が更新された場合
+          if (year === 10 && edits.netWorthTarget !== undefined) {
+            plPlan!.tenYearTargetNetWorth = edits.netWorthTarget;
+          }
         }
-
-        // 実績フィールドが編集されている場合のみマンダラ連動
+  
+        // 実績値の処理
         const hasActualEdit =
           edits.revenueActual !== undefined ||
           edits.grossProfitActual !== undefined ||
           edits.operatingProfitActual !== undefined ||
           edits.netWorthActual !== undefined;
-
+  
         if (hasActualEdit) {
-          onYearlyActualUpdate(year, updatedActual);
+          const updatedActual = {
+            year,
+            revenueActual: edits.revenueActual ?? currentData.revenueActual,
+            grossProfitActual: edits.grossProfitActual ?? currentData.grossProfitActual,
+            operatingProfitActual: edits.operatingProfitActual ?? currentData.operatingProfitActual,
+            netWorthActual: edits.netWorthActual ?? currentData.netWorthActual,
+          };
+  
+          // pl_actual_v1に保存
+          const existingActualIndex = plActual!.yearly.findIndex((a) => a.year === year);
+          if (existingActualIndex >= 0) {
+            plActual!.yearly[existingActualIndex] = updatedActual;
+          } else {
+            plActual!.yearly.push(updatedActual);
+          }
+          // マンダラ連動
+          console.log('=== Mandala Update Debug ===');
+          console.log('Year:', year);
+          console.log('Updated Actual:', updatedActual);
+          const result = onYearlyActualUpdate(year, updatedActual);
+          console.log('Update Result:', result);
+          console.log('===========================');
           mandalaUpdated = true;
         }
       });
-
+  
       // localStorageに保存
+      if (targetUpdated) {
+        localStorage.setItem('pl_plan_v1', JSON.stringify(plPlan));
+      }
       savePlActual(plActual);
-
+  
       // pendingEditsをクリア
       setPendingEdits({});
-
+  
       if (mandalaUpdated) {
-        alert(
-          "保存しました!\n\n✨ マンダラチャートの目標も自動更新されました!"
-        );
+        alert("保存しました!\n\n✨ マンダラチャートの目標も自動更新されました!");
+      } else if (targetUpdated) {
+        alert("保存しました!\n\n目標値が更新されました。");
       } else {
         alert("保存しました!");
       }
@@ -517,110 +657,133 @@ const YearlyBudgetActual: React.FC = () => {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 px-4 sm:px-6 lg:px-8 py-6">
       {/* タイトル */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center space-x-3">
-          <Navigation className="h-6 w-6 sm:h-8 sm:w-8 text-primary" />
+          <Map className="h-6 w-6 sm:h-8 sm:w-8 text-primary" />
           <h1 className="text-heading font-bold text-text">年次PL</h1>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-        {/* 粗利益推移予測 */}
-        <div className="card">
-          <h3 className="text-body font-semibold text-text mb-4">
-            粗利益推移予測
-          </h3>
-          <ResponsiveContainer width="100%" height={320}>
-            <LineChart data={targets}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#E0E0E0" />
-              <XAxis
-                dataKey="year"
-                stroke="#1E1F1F"
-                tickFormatter={(value) => `${value}年目`}
-              />
-              <YAxis
-                stroke="#1E1F1F"
-                domain={[0, 50000000]}
-                tickFormatter={(value) => `${(value / 10000).toFixed(0)}万`}
-              />
-              <Tooltip
-                formatter={(value: number, _key, item) => [
-                  `${(value / 10000).toLocaleString()}万円`,
-                  item && item.name,
-                ]}
-                labelFormatter={(label) => `${label}年目`}
-                labelStyle={{ color: "#1E1F1F" }}
-              />
-              {/* 目標（グレー） */}
-              <Line
-                type="monotone"
-                dataKey="grossProfitTarget"
-                stroke="#E0E0E0"
-                strokeWidth={3}
-                dot={{ fill: "#E0E0E0", strokeWidth: 2, r: 4 }}
-                name="粗利益目標"
-              />
-              {/* 実績（グリーン） */}
-              <Line
-                type="monotone"
-                dataKey="grossProfitActual"
-                stroke="#13AE67"
-                strokeWidth={3}
-                dot={{ fill: "#13AE67", strokeWidth: 1, r: 3 }}
-                name="粗利益実績"
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-
-        {/* 営業利益推移予測 */}
-        <div className="card">
-          <h3 className="text-body font-semibold text-text mb-4">
-            営業利益推移予測
-          </h3>
-          <ResponsiveContainer width="100%" height={320}>
-            <LineChart data={targets}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#E0E0E0" />
-              <XAxis
-                dataKey="year"
-                stroke="#1E1F1F"
-                tickFormatter={(value) => `${value}年目`}
-              />
-              <YAxis
-                stroke="#1E1F1F"
-                domain={[0, 50000000]}
-                tickFormatter={(value) => `${(value / 10000).toFixed(0)}万`}
-              />
-              <Tooltip
-                formatter={(value: number, _key, item) => [
-                  `${(value / 10000).toLocaleString()}万円`,
-                  item && item.name,
-                ]}
-                labelFormatter={(label) => `${label}年目`}
-                labelStyle={{ color: "#1E1F1F" }}
-              />
-              {/* 目標（グレー） */}
-              <Line
-                type="monotone"
-                dataKey="operatingProfitTarget"
-                stroke="#E0E0E0"
-                strokeWidth={3}
-                dot={{ fill: "#E0E0E0", strokeWidth: 2, r: 4 }}
-                name="営業利益目標"
-              />
-              {/* 実績（グリーン） */}
-              <Line
-                type="monotone"
-                dataKey="operatingProfitActual"
-                stroke="#13AE67"
-                strokeWidth={3}
-                dot={{ fill: "#13AE67", strokeWidth: 1, r: 3 }}
-                name="営業利益実績"
-              />
-            </LineChart>
-          </ResponsiveContainer>
+      <div className="flex justify-center">
+        {/* 推移予測グラフ */}
+        <div className="card w-full max-w-6xl">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-4">
+            <h3 className="text-body font-semibold text-text">
+              {chartType === "revenue" ? "売上推移予測" : 
+              chartType === "grossProfit" ? "粗利益推移予測" : 
+              "営業利益推移予測"}
+            </h3>
+            <select
+              value={chartType}
+              onChange={(e) => setChartType(e.target.value as "revenue" | "grossProfit" | "operatingProfit")}
+              className="text-body border border-border rounded px-3 py-2 pr-8 appearance-none bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+              style={{
+                backgroundImage: 'url(\'data:image/svg+xml;utf8,<svg fill="black" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/><path d="M0 0h24v24H0z" fill="none"/></svg>\')',
+                backgroundRepeat: "no-repeat",
+                backgroundPosition: "calc(100% - 4px) center",
+                backgroundSize: "16px",
+              }}
+            >
+              <option value="revenue">売上</option>
+              <option value="grossProfit">粗利益</option>
+              <option value="operatingProfit">営業利益</option>
+            </select>
+          </div>
+    
+          {(() => {
+              console.log('targets:', targets);
+              console.log('yAxisDomain:', yAxisDomain);
+              console.log('chartType:', chartType);
+              return null;
+            })()}
+            
+            <ResponsiveContainer width="100%" height={400}>
+              <LineChart data={targets} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#E0E0E0" />
+                <XAxis
+                  dataKey="year"
+                  stroke="#1E1F1F"
+                  tickFormatter={(value) => {
+                    const fiscalYear = 2025 + value - 1;
+                    return `FY${fiscalYear}`;
+                  }}
+                  dy={10}
+                />
+                <YAxis
+                  stroke="#1E1F1F"
+                  domain={yAxisDomain}
+                  tickFormatter={(value) => `${(value / 10000).toFixed(0)}万`}
+                  width={80}
+                />
+                <Tooltip
+                  formatter={(value: number) => `${(value / 10000).toLocaleString()}万円`}
+                  labelFormatter={(label) => {
+                    const fiscalYear = 2025 + label - 1;
+                    return `FY${fiscalYear}`;
+                  }}
+                  labelStyle={{ color: "#1E1F1F" }}
+                />
+                
+                {/* 売上 */}
+                <Line
+                  type="monotone"
+                  dataKey="revenueTarget"
+                  stroke="#9CA3AF"
+                  strokeWidth={3}
+                  strokeDasharray="5 5"
+                  name="売上目標"
+                  hide={chartType !== "revenue"}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="revenueActual"
+                  stroke="#13AE67"
+                  strokeWidth={3}
+                  name="売上実績"
+                  hide={chartType !== "revenue"}
+                />
+                
+                {/* 粗利益 */}
+                <Line
+                  type="monotone"
+                  dataKey="grossProfitTarget"
+                  stroke="#9CA3AF"
+                  strokeWidth={3}
+                  strokeDasharray="5 5"
+                  name="粗利益目標"
+                  hide={chartType !== "grossProfit"}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="grossProfitActual"
+                  stroke="#13AE67"
+                  strokeWidth={3}
+                  name="粗利益実績"
+                  hide={chartType !== "grossProfit"}
+                />
+                
+                {/* 営業利益 */}
+                <Line
+                  type="monotone"
+                  dataKey="operatingProfitTarget"
+                  stroke="#9CA3AF"
+                  strokeWidth={3}
+                  strokeDasharray="5 5"
+                  name="営業利益目標"
+                  hide={chartType !== "operatingProfit"}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="operatingProfitActual"
+                  stroke="#13AE67"
+                  strokeWidth={3}
+                  name="営業利益実績"
+                  hide={chartType !== "operatingProfit"}
+                />
+              </LineChart>
+            </ResponsiveContainer>
         </div>
       </div>
 
@@ -677,14 +840,17 @@ const YearlyBudgetActual: React.FC = () => {
                 <th className="text-left py-2 sm:py-3 px-1 sm:px-2 font-medium">
                   項目
                 </th>
-                {getTableDisplayData().map((data) => (
-                  <th
-                    key={data.year}
-                    className="text-right py-2 sm:py-3 px-1 sm:px-2 whitespace-nowrap"
-                  >
-                    {data.year}年目
-                  </th>
-                ))}
+                {getTableDisplayData().map((data) => {
+                  const fiscalYear = 2025 + data.year - 1;
+                  return (
+                    <th
+                      key={data.year}
+                      className="text-right py-2 sm:py-3 px-1 sm:px-2 whitespace-nowrap font-medium"
+                    >
+                      FY{fiscalYear}
+                    </th>
+                  );
+                })}
               </tr>
             </thead>
             <tbody>

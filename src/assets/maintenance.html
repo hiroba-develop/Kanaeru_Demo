@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Mietoru | メンテナンス中</title>
+    <meta name="robots" content="noindex, nofollow" />
+    <link rel="icon" href="./mietoru_favicon.svg" type="image/svg+xml" />
+    <meta name="theme-color" content="#ffffff" />
+    <style>
+      :root {
+        color-scheme: light;
+        --color-main: #67BACA;
+        --color-accent: #FE0000;
+        --color-sub1: #B3DBC0;
+        --color-sub2: #FDF6F6;
+        --color-bg: #FFFFFF;
+        --color-text: #333333;
+        --color-border: #E0E0E0;
+      }
+      * { box-sizing: border-box; }
+      html, body { height: 100%; }
+      body {
+        margin: 0;
+        font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans JP", "Hiragino Kaku Gothic ProN", Meiryo, sans-serif;
+        background: var(--color-bg);
+        color: var(--color-text);
+        display: grid;
+        place-items: center;
+      }
+      .container { max-width: 560px; padding: 24px; text-align: center; }
+      .brand {
+        display: inline-flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 16px;
+        color: inherit;
+        text-decoration: none;
+      }
+      .brand img { width: 36px; height: 36px; }
+      .brand span { font-weight: 700; font-size: 20px; letter-spacing: .2px; }
+      .panel {
+        background: var(--color-bg);
+        border: 1px solid var(--color-border);
+        border-top: 4px solid var(--color-main);
+        border-radius: 12px;
+        padding: 32px 24px;
+        box-shadow: none;
+      }
+      h1 { margin: 0 0 12px; font-size: 24px; }
+      p { margin: 0 0 16px; line-height: 1.7; color: var(--color-text); }
+      .actions { display: flex; justify-content: center; gap: 12px; margin-top: 8px; }
+      .button {
+        appearance: none;
+        border: 1px solid var(--color-border);
+        background: var(--color-main);
+        color: var(--color-text);
+        padding: 10px 16px;
+        border-radius: 8px;
+        font-size: 14px;
+        cursor: pointer;
+      }
+      .button:hover { filter: brightness(0.98); }
+      .button:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+      .button.secondary { background: var(--color-sub2); color: var(--color-text); border-color: var(--color-border); }
+      .footer { margin-top: 16px; font-size: 12px; color: var(--color-text); opacity: .75; }
+    </style>
+  </head>
+  <body>
+    <main class="container" role="main">
+      <section class="panel" role="status" aria-live="polite">
+        <h1>メンテナンス中です</h1>
+        <p>現在、システムの安定性向上のためメンテナンスを実施しています。</p>
+        <p>ご不便をおかけし申し訳ございません。しばらく時間をおいてアクセスしてください。</p>
+        <div class="actions">
+          <button class="button" onclick="location.reload()">再読み込み</button>
+          <button class="button secondary" onclick="window.location.href='/'">トップへ</button>
+        </div>
+        <div class="footer" id="statusHint"></div>
+      </section>
+      <noscript>
+        <div class="footer">JavaScriptが無効になっています。手動でブラウザの再読み込みをお試しください。</div>
+      </noscript>
+    </main>
+    <script>
+      (function () {
+        var el = document.getElementById('statusHint');
+        var now = new Date();
+        var time = now.toLocaleString('ja-JP', { hour12: false });
+        if (el) {
+          el.textContent = '最終更新: ' + time + '（60秒ごとに自動更新）';
+        }
+        setTimeout(function () { location.reload(); }, 60000);
+      })();
+    </script>
+  </body>
+  </html>
+
+

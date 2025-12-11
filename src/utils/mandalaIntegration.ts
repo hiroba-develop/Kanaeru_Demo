@@ -236,12 +236,12 @@ export const getPlPlanFromMandala = (): PlPlan | null => {
   // =========================
   if (centerGoal) {
     const metric = detectPlMetricFromTitle(centerGoal);
-    const amount = parseAmountFromText(centerGoal); // ← あなたが下に定義したやつ
-    const yearInTitle = extractYearIndexFromText(centerGoal); // 「◯年目」があれば使う
-    const anchorYear = amount ? yearInTitle ?? 10 : null; // 年指定なければ10年目扱い
+    const amount = parseAmountFromText(centerGoal);
+    const yearInTitle = extractYearIndexFromText(centerGoal);
+    const anchorYear = amount ? yearInTitle ?? 10 : null;
 
     if (anchorYear) {
-      addAnchor(metric, anchorYear, amount, 4); // priority 4: 大中小より強く上書き
+      addAnchor(metric, anchorYear, amount, 4);
     }
   }
 
@@ -255,7 +255,7 @@ export const getPlPlanFromMandala = (): PlPlan | null => {
     const majorAmount = extractAmountFromText(majorCell.title);
     const majorYearInTitle = extractYearIndexFromText(majorCell.title);
     const majorAnchorYear = majorAmount
-      ? majorYearInTitle ?? 10 // 年度指定なしなら10年目
+      ? majorYearInTitle ?? 10
       : null;
 
     if (majorAnchorYear) {
@@ -266,7 +266,6 @@ export const getPlPlanFromMandala = (): PlPlan | null => {
     if (!middleChart) return;
 
     middleChart.cells.forEach((middleCell) => {
-      // 中目標は plMetric > タイトル > 大目標 の順で指標判定
       let metric: PlMetric | undefined = middleCell.plMetric;
       if (!metric) metric = detectPlMetricFromTitle(middleCell.title);
       if (!metric) metric = majorMetric;
@@ -290,7 +289,6 @@ export const getPlPlanFromMandala = (): PlPlan | null => {
         const minorAnchorYear = minorAmount ? minorYearInTitle ?? 10 : null;
 
         if (minorAnchorYear) {
-          // 小目標は metric を中目標から継承
           addAnchor(metric, minorAnchorYear, minorAmount, 3);
         }
       });
@@ -343,7 +341,6 @@ export const getPlPlanFromMandala = (): PlPlan | null => {
 
     const segments: Segment[] = [];
 
-    // 最初は「1年目:0」→ 最初のアンカー というセグメント
     let prevYear = 0;
     let prevAmount = 0;
 
@@ -359,7 +356,6 @@ export const getPlPlanFromMandala = (): PlPlan | null => {
       prevAmount = amount;
     });
 
-    // 最後のアンカーが10年目より前なら、その後はフラットで10年目まで伸ばす
     if (prevYear < 10) {
       segments.push({
         startYear: prevYear,
@@ -381,7 +377,7 @@ export const getPlPlanFromMandala = (): PlPlan | null => {
         amount = seg.endAmount;
       } else {
         const t =
-          (year - seg.startYear) / (seg.endYear - seg.startYear); // 0〜1
+          (year - seg.startYear) / (seg.endYear - seg.startYear);
         amount = seg.startAmount + (seg.endAmount - seg.startAmount) * t;
       }
 
@@ -457,8 +453,11 @@ export const parseAmountFromText = (text: string): number => {
 /**
  * マンダラ目標更新時のフック
  * - MandalaChart から呼ばれる
+ * - ヘッダーの「目標を更新する」ボタンから呼ばれる
  */
 export const onMandalaGoalUpdate = () => {
+  console.log("マンダラ目標を更新しています...");
+  
   const plPlan = getPlPlanFromMandala();
 
   if (plPlan) {
@@ -467,8 +466,13 @@ export const onMandalaGoalUpdate = () => {
     localStorage.removeItem("pl_plan_v1");
   }
 
-  // 年次PL画面に更新を通知（必要ならリスナー側で使う）
+  // 年次PL画面に更新を通知
   window.dispatchEvent(new CustomEvent("pl-plan-updated"));
+
+  // ★ マンダラチャートに保存完了を通知（背景色をクリアするため）
+  window.dispatchEvent(new Event('mandalaGoalUpdated'));
+
+  console.log("マンダラ目標の更新が完了しました");
 
   return plPlan;
 };
@@ -546,48 +550,57 @@ export const onYearlyActualUpdate = (
     if (!middleChart) return;
 
     middleChart.cells.forEach((middleCell) => {
-      let metric: PlMetric | undefined =
+      // middleCell の plMetric（なくても minorCell 側で判定する）
+      const middleMetric: PlMetric | undefined =
         middleCell.plMetric || detectPlMetricFromTitle(middleCell.title);
     
-      if (!metric) return;
-      if (!(metric in achievements)) return;
-    
-      // ★ 中目標の年は参照用としてだけ持つ（ここではフィルタしない）
       const middleYearRaw = extractYearIndexFromText(middleCell.title);
       const middleYear = middleYearRaw ?? null;
     
-      const rate = achievements[metric]!;
       const minorChart = minorCharts[middleCell.id];
       if (!minorChart) return;
     
       let hasMinorGoalForYear = false;
+      let minorMetricForMiddleUpdate: PlMetric | undefined;
     
+      // ★ minorCell ごとに plMetric を判定して更新
       minorChart.cells.forEach((minorCell) => {
-        // plMetric が設定されていない場合は、タイトルから検出して保存
+        // minorCell 自体の plMetric を判定
         if (!minorCell.plMetric && minorCell.title) {
           const detectedMetric = detectPlMetricFromTitle(minorCell.title);
           if (detectedMetric) {
             minorCell.plMetric = detectedMetric;
           }
         }
-    
-        // PL項目の小目標のみ処理
-        if (minorCell.plMetric !== metric) return;
-    
-        // ★ 年の決め方：
-        //    小目標 > 中目標 > 大目標(majorYear) > 今回の year
+      
+        // minorCell の plMetric を取得（minorCell 優先、なければ middleCell から継承）
+        const cellMetric: PlMetric | undefined = minorCell.plMetric || middleMetric;
+        
+        // メトリックがない、または achievements に該当がなければスキップ
+        if (!cellMetric) return;
+        if (!(cellMetric in achievements)) return;
+      
         const rawYear = extractYearIndexFromText(minorCell.title);
         const cellYear =
           rawYear ??
           middleYear ??
-          majorYear ?? // ← この majorYear は、少し上で majorCell から取っているやつをそのまま使ってOK
+          majorYear ??
           year;
-    
+      
         if (cellYear !== year) return;
-    
+      
         hasMinorGoalForYear = true;
-    
+        minorMetricForMiddleUpdate = cellMetric;
+      
+        const rate = achievements[cellMetric]!;
         const isAchieved = rate >= ACHIEVED_THRESHOLD;
+        
+        console.log(`✅ Updating "${minorCell.title}" (${minorCell.id}):`, {
+          isChecked: isAchieved,
+          achievement: Math.round(Math.min(rate, 1) * 100),
+          status: isAchieved ? 'achieved' : rate > 0 ? 'in_progress' : 'not_started'
+        });
+      
         minorCell.isChecked = isAchieved;
         minorCell.achievement = Math.round(Math.min(rate, 1) * 100);
         minorCell.status = isAchieved
@@ -595,28 +608,39 @@ export const onYearlyActualUpdate = (
           : rate > 0
           ? "in_progress"
           : "not_started";
-    
+      
         updated = true;
       });
     
-      // ★ hasMinorGoalForYear の扱いはそのままでOK
-      if (hasMinorGoalForYear) {
+      // middleCell の achievement と status を更新
+      if (hasMinorGoalForYear && minorMetricForMiddleUpdate) {
         const checkedCount = minorChart.cells.filter((c) => c.isChecked).length;
         middleCell.achievement = Math.round(
           (checkedCount / minorChart.cells.length) * 100
         );
-      } else {
-        middleCell.achievement = Math.round(Math.min(achievements[metric]!, 1) * 100);
+        
+        const rate = achievements[minorMetricForMiddleUpdate]!;
+        middleCell.status =
+          rate >= ACHIEVED_THRESHOLD
+            ? "achieved"
+            : rate > 0
+            ? "in_progress"
+            : "not_started";
+        
+        updated = true;
+      } else if (middleMetric && middleMetric in achievements) {
+        // minorCell がなくても middleCell 自体が PL メトリックを持っている場合
+        const rate = achievements[middleMetric]!;
+        middleCell.achievement = Math.round(Math.min(rate, 1) * 100);
+        middleCell.status =
+          rate >= ACHIEVED_THRESHOLD
+            ? "achieved"
+            : rate > 0
+            ? "in_progress"
+            : "not_started";
+        
+        updated = true;
       }
-    
-      middleCell.status =
-        rate >= ACHIEVED_THRESHOLD
-          ? "achieved"
-          : rate > 0
-          ? "in_progress"
-          : "not_started";
-    
-      updated = true;
     });
   });
 

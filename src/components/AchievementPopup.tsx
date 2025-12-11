@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Award, Heart, Sparkles, X } from "lucide-react";
-import achieveBoy from "../../public/achieve_boy.png";
-import achieveGirl from "../../public/achieve_girl.png";
+import achieveBoy from "../assets/achieve_boy.png";
+import achieveGirl from "../assets/achieve_girl.png";
 
 interface AchievementPopupProps {
   isOpen: boolean;
