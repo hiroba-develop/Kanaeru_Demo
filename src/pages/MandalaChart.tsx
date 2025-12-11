@@ -512,10 +512,30 @@ const MandalaChart: React.FC = () => {
 
     if (cellType === 'center') {
       setCenterGoal(goal);
+      
+      // 中心セルにもplMetricを保存
+      const plMetric = 
+        goalType === 'revenue' ? 'revenue' :
+        goalType === 'grossProfit' ? 'grossProfit' :
+        goalType === 'operatingProfit' ? 'operatingProfit' :
+        undefined;
+      
+      if (plMetric) {
+        localStorage.setItem('mandala_center_plMetric_v2', plMetric);
+      } else {
+        localStorage.removeItem('mandala_center_plMetric_v2');
+      }
     } else if (cellType === 'major') {
+      // 大目標にもplMetricを設定
+      const plMetric = 
+        goalType === 'revenue' ? 'revenue' :
+        goalType === 'grossProfit' ? 'grossProfit' :
+        goalType === 'operatingProfit' ? 'operatingProfit' :
+        undefined;
+
       setMajorCells((prev) =>
         prev.map((c) =>
-          c.id === cellId ? { ...c, title: goal } : c
+          c.id === cellId ? { ...c, title: goal, plMetric } : c
         )
       );
     } else if (cellType === 'middle' && selectedMajorCellId) {
@@ -899,15 +919,15 @@ const MandalaChart: React.FC = () => {
                       style={{
                         position: 'absolute',
                         width: '160px',
-                        height: '64px',
+                        height: '80px', // 高さを増やす
                         top: '50%',
                         left: '50%',
-                        transform: 'translate(-50%, -32px)',
+                        transform: 'translate(-50%, -40px)', // 中央配置調整
                         fontFamily: 'Inter',
                         fontWeight: 700,
                         fontStyle: 'normal',
-                        fontSize: '20px',
-                        lineHeight: '32px',
+                        fontSize: centerGoal.includes('\n') ? '16px' : '20px', // 改行がある場合は小さく
+                        lineHeight: centerGoal.includes('\n') ? '22px' : '32px', // 行間も調整
                         letterSpacing: '0%',
                         textAlign: 'center',
                         color: '#13AE67',
@@ -921,7 +941,7 @@ const MandalaChart: React.FC = () => {
                         padding: '0'
                       }}
                     >
-                      {centerGoal || '最終目標を入力'}
+                      {centerGoal || ''}
                     </div>
                   </div>
                 );

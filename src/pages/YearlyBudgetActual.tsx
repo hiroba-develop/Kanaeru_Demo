@@ -8,6 +8,8 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
+  ReferenceLine,
+  Label,
 } from "recharts";
 import { useAuth } from "../contexts/AuthContext";
 import {
@@ -35,159 +37,6 @@ interface YearlyData {
   phase: string;
 }
 
-// デモ用のロードマップデータ
-const DEMO_ROADMAP_DATA = {
-  fiscalYearStartMonth: 4,
-  fiscalYearStartYear: 2023,
-  yearlyTargets: [
-    {
-      year: 1,
-      revenueTarget: 12000000,
-      revenueActual: 11500000,
-      grossProfitTarget: 4800000,
-      grossProfitActual: 4500000,
-      operatingProfitTarget: 3840000,
-      operatingProfitActual: 3600000,
-      netWorthTarget: 5000000,
-      netWorthActual: 4800000,
-      phase: "創業期",
-    },
-    {
-      year: 2,
-      revenueTarget: 18000000,
-      revenueActual: 18500000,
-      grossProfitTarget: 7200000,
-      grossProfitActual: 7300000,
-      operatingProfitTarget: 5760000,
-      operatingProfitActual: 5840000,
-      netWorthTarget: 10000000,
-      netWorthActual: 10200000,
-      phase: "創業期",
-    },
-    {
-      year: 3,
-      revenueTarget: 24000000,
-      revenueActual: 23000000,
-      grossProfitTarget: 9600000,
-      grossProfitActual: 9400000,
-      operatingProfitTarget: 7680000,
-      operatingProfitActual: 7520000,
-      netWorthTarget: 15000000,
-      netWorthActual: 14500000,
-      phase: "創業期",
-    },
-    {
-      year: 4,
-      revenueTarget: 30000000,
-      revenueActual: 31000000,
-      grossProfitTarget: 12000000,
-      grossProfitActual: 12500000,
-      operatingProfitTarget: 9600000,
-      operatingProfitActual: 10000000,
-      netWorthTarget: 20000000,
-      netWorthActual: 20500000,
-      phase: "転換期",
-    },
-    {
-      year: 5,
-      revenueTarget: 36000000,
-      revenueActual: 0,
-      grossProfitTarget: 14400000,
-      grossProfitActual: 0,
-      operatingProfitTarget: 11520000,
-      operatingProfitActual: 0,
-      netWorthTarget: 25000000,
-      netWorthActual: 0,
-      phase: "転換期",
-    },
-    {
-      year: 6,
-      revenueTarget: 42000000,
-      revenueActual: 0,
-      grossProfitTarget: 16800000,
-      grossProfitActual: 0,
-      operatingProfitTarget: 13440000,
-      operatingProfitActual: 0,
-      netWorthTarget: 30000000,
-      netWorthActual: 0,
-      phase: "成長期",
-    },
-    {
-      year: 7,
-      revenueTarget: 48000000,
-      revenueActual: 0,
-      grossProfitTarget: 19200000,
-      grossProfitActual: 0,
-      operatingProfitTarget: 15360000,
-      operatingProfitActual: 0,
-      netWorthTarget: 35000000,
-      netWorthActual: 0,
-      phase: "成長期",
-    },
-    {
-      year: 8,
-      revenueTarget: 54000000,
-      revenueActual: 0,
-      grossProfitTarget: 21600000,
-      grossProfitActual: 0,
-      operatingProfitTarget: 17280000,
-      operatingProfitActual: 0,
-      netWorthTarget: 40000000,
-      netWorthActual: 0,
-      phase: "成長期",
-    },
-    {
-      year: 9,
-      revenueTarget: 60000000,
-      revenueActual: 0,
-      grossProfitTarget: 24000000,
-      grossProfitActual: 0,
-      operatingProfitTarget: 19200000,
-      operatingProfitActual: 0,
-      netWorthTarget: 45000000,
-      netWorthActual: 0,
-      phase: "成長期",
-    },
-    {
-      year: 10,
-      revenueTarget: 66000000,
-      revenueActual: 0,
-      grossProfitTarget: 26400000,
-      grossProfitActual: 0,
-      operatingProfitTarget: 21120000,
-      operatingProfitActual: 0,
-      netWorthTarget: 50000000,
-      netWorthActual: 0,
-      phase: "成長期",
-    },
-  ],
-};
-
-// デモユーザーごとの補正
-const getDemoDataForUser = (userId: string | undefined) => {
-  if (!userId) {
-    return {
-      yearlyTargets: [],
-    };
-  }
-
-  const multiplier =
-    userId === "user-A" ? 0.95 : userId === "user-B" ? 1.05 : 1;
-
-  const userYearlyTargets = DEMO_ROADMAP_DATA.yearlyTargets.map((target) => ({
-    ...target,
-    revenueActual: Math.round(target.revenueActual * multiplier),
-    grossProfitActual: Math.round(target.grossProfitActual * multiplier),
-    operatingProfitActual: Math.round(
-      target.operatingProfitActual * multiplier
-    ),
-    netWorthActual: Math.round(target.netWorthActual * multiplier),
-  }));
-
-  return {
-    yearlyTargets: userYearlyTargets,
-  };
-};
 
 type EditableField =
   | "revenueTarget"
@@ -237,8 +86,8 @@ const YearlyBudgetActual: React.FC = () => {
     
     console.log('maxValue:', maxValue);
     
-    // 最大値に20%の余裕を持たせ、100万単位で切り上げ
-    const upperBound = Math.ceil(maxValue * 1.2 / 1000000) * 1000000;
+    // 最大値に50%の余裕を持たせる（マンダラ目標も表示できるように）
+    const upperBound = Math.ceil(maxValue * 1.5 / 1000000) * 1000000;
     const finalBound = Math.max(upperBound, 10000000); // 最低でも1000万
     
     console.log('finalBound:', finalBound);
@@ -282,9 +131,8 @@ const YearlyBudgetActual: React.FC = () => {
 
           setTargets(yearlyTargets);
         } else {
-          // マンダラ連動が無い場合はデモデータ
-          const data = getDemoDataForUser(selectedUser.id);
-          setTargets(JSON.parse(JSON.stringify(data.yearlyTargets)));
+          // マンダラ連動が無い場合は空配列
+          setTargets([]);
         }
       } catch (err) {
         setError("データの読み込みに失敗しました");
@@ -295,7 +143,148 @@ const YearlyBudgetActual: React.FC = () => {
 
     loadData();
   }, [selectedUser]);
-  
+
+  const [mandalaGoals, setMandalaGoals] = useState<{
+    year: number;
+    targetValue: number;
+    metric: 'revenue' | 'grossProfit' | 'operatingProfit';
+  }[]>([]);
+
+  // データロード時にマンダラの目標を抽出
+  useEffect(() => {
+    const extractMandalaGoals = () => {
+      const goals: typeof mandalaGoals = [];
+      
+      console.log('🔍 Extracting mandala goals...');
+      
+      // 中心目標から抽出
+      const centerGoal = localStorage.getItem('mandala_center_goal_v2');
+      const centerPlMetric = localStorage.getItem('mandala_center_plMetric_v2');
+      
+      if (centerGoal && centerPlMetric) {
+        const yearMatch = centerGoal.match(/(\d+)年目/);
+        const amountMatch = centerGoal.match(/(\d+)万円/);
+        
+        if (yearMatch && amountMatch) {
+          const year = parseInt(yearMatch[1]);
+          const amount = parseInt(amountMatch[1]) * 10000;
+          
+          console.log('✅ Found center goal:', {
+            year,
+            amount,
+            metric: centerPlMetric
+          });
+          
+          goals.push({
+            year,
+            targetValue: amount,
+            metric: centerPlMetric as 'revenue' | 'grossProfit' | 'operatingProfit'
+          });
+        }
+      }
+      
+      // 大目標（major）から目標を抽出
+      const majorCellsStr = localStorage.getItem('mandala_major_cells_v2');
+      if (majorCellsStr) {
+        const majorCells = JSON.parse(majorCellsStr);
+        console.log('Major cells:', majorCells);
+        
+        majorCells.forEach((cell: any) => {
+          if (cell.plMetric && cell.title) {
+            const yearMatch = cell.title.match(/(\d+)年目/);
+            const amountMatch = cell.title.match(/(\d+)万円/);
+            
+            if (yearMatch && amountMatch) {
+              const year = parseInt(yearMatch[1]);
+              const amount = parseInt(amountMatch[1]) * 10000;
+              
+              console.log('✅ Found major goal:', {
+                year,
+                amount,
+                metric: cell.plMetric
+              });
+              
+              goals.push({
+                year,
+                targetValue: amount,
+                metric: cell.plMetric
+              });
+            }
+          }
+        });
+      }
+      
+      // 中目標（middle）から目標を抽出
+      const middleChartsStr = localStorage.getItem('mandala_middle_charts_v2');
+      if (middleChartsStr) {
+        const charts = JSON.parse(middleChartsStr);
+        console.log('Middle charts:', charts);
+        
+        Object.values(charts).forEach((chart: any) => {
+          chart.cells.forEach((cell: any) => {
+            if (cell.plMetric && cell.title) {
+              const yearMatch = cell.title.match(/(\d+)年目/);
+              const amountMatch = cell.title.match(/(\d+)万円/);
+              
+              if (yearMatch && amountMatch) {
+                const year = parseInt(yearMatch[1]);
+                const amount = parseInt(amountMatch[1]) * 10000;
+                
+                console.log('✅ Found middle goal:', {
+                  year,
+                  amount,
+                  metric: cell.plMetric
+                });
+                
+                goals.push({
+                  year,
+                  targetValue: amount,
+                  metric: cell.plMetric
+                });
+              }
+            }
+          });
+        });
+      }
+      // 小目標（minor）から目標を抽出
+      const minorChartsStr = localStorage.getItem('mandala_minor_charts_v2');
+      if (minorChartsStr) {
+        const charts = JSON.parse(minorChartsStr);
+        console.log('Minor charts:', charts);
+        
+        Object.values(charts).forEach((chart: any) => {
+          chart.cells.forEach((cell: any) => {
+            if (cell.plMetric && cell.title) {
+              const yearMatch = cell.title.match(/(\d+)年目/);
+              const amountMatch = cell.title.match(/(\d+)万円/);
+              
+              if (yearMatch && amountMatch) {
+                const year = parseInt(yearMatch[1]);
+                const amount = parseInt(amountMatch[1]) * 10000;
+                
+                console.log('✅ Found minor goal:', {
+                  year,
+                  amount,
+                  metric: cell.plMetric
+                });
+                
+                goals.push({
+                  year,
+                  targetValue: amount,
+                  metric: cell.plMetric
+                });
+              }
+            }
+          });
+        });
+      }
+      console.log('📊 Final goals (center + major + middle):', goals);
+      setMandalaGoals(goals);
+    };
+    
+    extractMandalaGoals();
+  }, [targets]);
+
   useEffect(() => {
     const handlePlPlanUpdate = () => {
       console.log('pl-plan-updated event received, reloading...');
@@ -334,8 +323,7 @@ const YearlyBudgetActual: React.FC = () => {
 
             setTargets(yearlyTargets);
           } else {
-            const data = getDemoDataForUser(selectedUser.id);
-            setTargets(JSON.parse(JSON.stringify(data.yearlyTargets)));
+            setTargets([]);
           }
         } catch (err) {
           console.error('Reload error:', err);
@@ -692,16 +680,24 @@ const YearlyBudgetActual: React.FC = () => {
             </select>
           </div>
     
+          {/* ↓↓↓ ここに追加 ↓↓↓ */}
           {(() => {
-              console.log('targets:', targets);
-              console.log('yAxisDomain:', yAxisDomain);
-              console.log('chartType:', chartType);
-              return null;
-            })()}
+            console.log('📊 Chart Debug Info:');
+            console.log('- chartType:', chartType);
+            console.log('- targets:', targets);
+            console.log('- Sample target data:', targets[0]);
+            console.log('- Operating Profit Targets:', targets.map(t => ({
+              year: t.year,
+              target: t.operatingProfitTarget,
+              actual: t.operatingProfitActual
+            })));
+            return null;
+          })()}
             
-            <ResponsiveContainer width="100%" height={400}>
-              <LineChart data={targets} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+            <ResponsiveContainer width="100%" height={400}>          
+              <LineChart data={targets} margin={{ top: 30, right: 30, left: 20, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#E0E0E0" />
+                
                 <XAxis
                   dataKey="year"
                   stroke="#1E1F1F"
@@ -782,6 +778,61 @@ const YearlyBudgetActual: React.FC = () => {
                   name="営業利益実績"
                   hide={chartType !== "operatingProfit"}
                 />
+
+              {/* マンダラ目標の参照線 - 1つ目 */}
+              {mandalaGoals.filter(goal => goal.metric === chartType)[0] && (
+                <ReferenceLine 
+                  x={mandalaGoals.filter(goal => goal.metric === chartType)[0].year} 
+                  stroke="#0000FF" 
+                  strokeWidth={3}
+                  strokeDasharray="5 5"
+                >
+                  <Label 
+                    value={`${mandalaGoals.filter(goal => goal.metric === chartType)[0].year}年目期限`}
+                    position={mandalaGoals.filter(goal => goal.metric === chartType)[0].year === 1 ? "insideTopLeft" : "top"}
+                    fill="#0000FF"
+                    fontSize={12}
+                    offset={mandalaGoals.filter(goal => goal.metric === chartType)[0].year === 1 ? 5 : 10}
+                  />
+                </ReferenceLine>
+              )}
+              {/* マンダラ目標の参照線 - 2つ目 */}
+                {mandalaGoals.filter(goal => goal.metric === chartType)[1] && (
+                  <ReferenceLine 
+                    x={mandalaGoals.filter(goal => goal.metric === chartType)[1].year} 
+                    stroke="#0000FF" 
+                    strokeWidth={3}
+                    strokeDasharray="5 5"
+                  >
+                    <Label 
+                      value={`${mandalaGoals.filter(goal => goal.metric === chartType)[1].year}年目期限`}
+                      position="top"
+                      fill="#0000FF"
+                      fontSize={12}
+                      offset={10}
+                      dx={mandalaGoals.filter(goal => goal.metric === chartType)[1].year === 1 ? 20 : 0}
+                    />
+                  </ReferenceLine>
+                )}
+
+                {/* マンダラ目標の参照線 - 3つ目 */}
+                {mandalaGoals.filter(goal => goal.metric === chartType)[2] && (
+                  <ReferenceLine 
+                    x={mandalaGoals.filter(goal => goal.metric === chartType)[2].year} 
+                    stroke="#0000FF" 
+                    strokeWidth={3}
+                    strokeDasharray="5 5"
+                  >
+                    <Label 
+                      value={`${mandalaGoals.filter(goal => goal.metric === chartType)[2].year}年目期限`}
+                      position="top"
+                      fill="#0000FF"
+                      fontSize={12}
+                      offset={10}
+                      dx={mandalaGoals.filter(goal => goal.metric === chartType)[2].year === 1 ? 20 : 0}
+                    />
+                  </ReferenceLine>
+                )}
               </LineChart>
             </ResponsiveContainer>
         </div>
