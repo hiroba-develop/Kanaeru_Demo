@@ -403,12 +403,12 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         <div className="flex-1 lg:ml-52 xl:ml-56">
           {/* ヘッダー */}
           <header 
-            className="px-3 sm:px-4 lg:px-6 h-14 sm:h-16 lg:h-20 flex items-center lg:pl-6 relative"
+            className="px-3 sm:px-4 lg:px-6 h-14 sm:h-16 lg:h-20 flex items-center lg:pl-6"
             style={{
               background: '#F6FAFC'
             }}
           >
-            <div className="flex items-center h-full w-full">
+            <div className="flex items-center justify-between h-full w-full">
               <div className="flex items-center">
                 <button
                   type="button"
@@ -430,17 +430,17 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                 </div>
               </div>
 
-              <div className="hidden lg:flex items-center">
+              <div className="flex items-center lg:mr-8">
                 {isMandalaPage && (
                   <button
                     onClick={() => {
                       onMandalaGoalUpdate();
                       alert("目標を更新しました。");
                     }}
-                    className="text-xs sm:text-sm font-medium bg-white text-primary border border-primary transition-colors hover:bg-primary/5 px-3 py-1.5 sm:px-4 sm:py-2 rounded-full whitespace-nowrap absolute"
+                    className="text-xs sm:text-sm font-medium bg-white text-primary border border-primary transition-colors hover:bg-primary/5 px-3 py-1.5 sm:px-4 sm:py-2 rounded-full whitespace-nowrap"
                     style={{
                       background: '#F6FAFC',
-                      left: '963px'
+                      marginRight: '72px'
                     }}
                   >
                     目標を更新する
@@ -453,9 +453,9 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                       logout();
                     }
                   }}
-                  className="hover:opacity-80 transition-opacity text-xs sm:text-sm text-gray-800 whitespace-nowrap absolute"
+                  className="hover:opacity-80 transition-opacity text-xs sm:text-sm text-gray-800 whitespace-nowrap"
                   style={{
-                    left: '1126px'
+                    marginRight: '55px'
                   }}
                 >
                   ログアウト
@@ -463,11 +463,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
                 <Link
                   to="/settings"
-                  className="p-1.5 sm:p-2 rounded-md hover:bg-sub2 transition-colors flex items-center justify-center absolute"
+                  className="p-1.5 sm:p-2 rounded-md hover:bg-sub2 transition-colors flex items-center justify-center"
                   title="設定"
-                  style={{
-                    left: '1228px'
-                  }}
                 >
                   <img 
                     src={settingsIcon} 
@@ -475,10 +472,6 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                     className="h-5 w-5 sm:h-6 sm:w-6 object-contain"
                   />
                 </Link>
-              </div>
-              {/* モバイル用は右側に配置 */}
-              <div className="flex lg:hidden items-center space-x-2 sm:space-x-3 ml-auto">
-                {/* 既存のモバイル用ボタン配置 */}
               </div>
             </div>
           </header>
