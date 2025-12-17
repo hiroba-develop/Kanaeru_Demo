@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { Save, Map } from "lucide-react";
+import { Save, BarChart3  } from "lucide-react";
 import {
   LineChart,
   Line,
@@ -649,14 +649,16 @@ const YearlyBudgetActual: React.FC = () => {
       {/* タイトル */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center space-x-3">
-          <Map className="h-6 w-6 sm:h-8 sm:w-8 text-primary" />
+          <div className="bg-primary text-white p-2 sm:p-2.5 rounded-full flex items-center justify-center" style={{ width: '32px', height: '32px' }}>
+            <BarChart3 className="w-4 h-4" />
+          </div>
           <h1 className="text-heading font-bold text-text">年次PL</h1>
         </div>
       </div>
 
       <div className="flex justify-center">
         {/* 推移予測グラフ */}
-        <div className="card w-full max-w-6xl">
+        <div className="card w-full max-w-6xl" style={{ boxShadow: '0 2px 12px rgba(0, 0, 0, 0.08)' }}>
           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-4">
             <h3 className="text-body font-semibold text-text">
               {chartType === "revenue" ? "売上推移予測" : 
@@ -696,11 +698,12 @@ const YearlyBudgetActual: React.FC = () => {
             
             <ResponsiveContainer width="100%" height={400}>          
               <LineChart data={targets} margin={{ top: 30, right: 30, left: 20, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#E0E0E0" />
+                <CartesianGrid stroke="#E5E7EB" />
                 
                 <XAxis
                   dataKey="year"
-                  stroke="#1E1F1F"
+                  stroke="#E5E7EB"
+                  tick={{ fill: "#1E1F1F", fontSize: 14, fontFamily: "system-ui, -apple-system, sans-serif" }}
                   tickFormatter={(value) => {
                     const fiscalYear = 2025 + value - 1;
                     return `FY${fiscalYear}`;
@@ -708,7 +711,8 @@ const YearlyBudgetActual: React.FC = () => {
                   dy={10}
                 />
                 <YAxis
-                  stroke="#1E1F1F"
+                  stroke="#E5E7EB"
+                  tick={{ fill: "#1E1F1F", fontSize: 14, fontFamily: "system-ui, -apple-system, sans-serif" }}
                   domain={yAxisDomain}
                   tickFormatter={(value) => `${(value / 10000).toFixed(0)}万`}
                   width={80}
@@ -719,7 +723,8 @@ const YearlyBudgetActual: React.FC = () => {
                     const fiscalYear = 2025 + label - 1;
                     return `FY${fiscalYear}`;
                   }}
-                  labelStyle={{ color: "#1E1F1F" }}
+                  labelStyle={{ color: "#1E1F1F", fontSize: 14, fontFamily: "system-ui, -apple-system, sans-serif" }}
+                  contentStyle={{ fontSize: 14, fontFamily: "system-ui, -apple-system, sans-serif" }}
                 />
                 
                 {/* 売上 */}
@@ -839,120 +844,122 @@ const YearlyBudgetActual: React.FC = () => {
       </div>
 
       {/* 10年間の目標設定テーブル */}
-      <div className="card">
-        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-4">
-          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
-            <h3 className="text-body font-semibold text-text">
-              10年間の目標設定
-            </h3>
-            <div className="text-note text-text/70">
-              💡 各種目標はダブルクリックで編集できます
+      <div className="flex justify-center">
+        <div className="card w-full max-w-6xl" style={{ boxShadow: '0 2px 12px rgba(0, 0, 0, 0.08)' }}>
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-4">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+              <h3 className="text-body font-semibold text-text">
+                10年間の目標設定
+              </h3>
+              <div className="text-note text-text/70">
+                💡 各種目標はダブルクリックで編集できます
+              </div>
+            </div>
+            <div className="grid grid-cols-1 gap-2">
+              <select
+                value={tableViewPeriod}
+                onChange={(e) =>
+                  setTableViewPeriod(e.target.value as "1-5" | "6-10")
+                }
+                className="text-body border border-border rounded px-2 py-1 pr-8 appearance-none bg-background"
+                style={{
+                  backgroundImage:
+                    'url(\'data:image/svg+xml;utf8,<svg fill="black" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/><path d="M0 0h24v24H0z" fill="none"/></svg>\')',
+                  backgroundRepeat: "no-repeat",
+                  backgroundPosition: "calc(100% - 4px) center",
+                  backgroundSize: "16px",
+                }}
+              >
+                <option value="1-5">1〜5年</option>
+                <option value="6-10">6〜10年</option>
+              </select>
             </div>
           </div>
-          <div className="grid grid-cols-1 gap-2">
-            <select
-              value={tableViewPeriod}
-              onChange={(e) =>
-                setTableViewPeriod(e.target.value as "1-5" | "6-10")
-              }
-              className="text-body border border-border rounded px-2 py-1 pr-8 appearance-none bg-background"
-              style={{
-                backgroundImage:
-                  'url(\'data:image/svg+xml;utf8,<svg fill="black" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/><path d="M0 0h24v24H0z" fill="none"/></svg>\')',
-                backgroundRepeat: "no-repeat",
-                backgroundPosition: "calc(100% - 4px) center",
-                backgroundSize: "16px",
-              }}
-            >
-              <option value="1-5">1〜5年</option>
-              <option value="6-10">6〜10年</option>
-            </select>
-          </div>
-        </div>
 
-        {hasChanges() && (
-          <div className="my-4 text-left">
-            <button
-              onClick={handleSave}
-              disabled={isSaving}
-              className="btn-primary flex items-center space-x-2 text-sm px-4 py-2"
-            >
-              <Save className="h-4 w-4" />
-              <span>{isSaving ? "保存中..." : "変更を保存"}</span>
-            </button>
-          </div>
-        )}
+          {hasChanges() && (
+            <div className="my-4 text-left">
+              <button
+                onClick={handleSave}
+                disabled={isSaving}
+                className="btn-primary flex items-center space-x-2 text-sm px-4 py-2"
+              >
+                <Save className="h-4 w-4" />
+                <span>{isSaving ? "保存中..." : "変更を保存"}</span>
+              </button>
+            </div>
+          )}
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-body">
-            <thead>
-              <tr className="border-b border-border">
-                <th className="text-left py-2 sm:py-3 px-1 sm:px-2 font-medium w-24"></th>
-                <th className="text-left py-2 sm:py-3 px-1 sm:px-2 font-medium">
-                  項目
-                </th>
-                {getTableDisplayData().map((data) => {
-                  const fiscalYear = 2025 + data.year - 1;
-                  return (
-                    <th
-                      key={data.year}
-                      className="text-right py-2 sm:py-3 px-1 sm:px-2 whitespace-nowrap font-medium"
-                    >
-                      FY{fiscalYear}
-                    </th>
-                  );
-                })}
-              </tr>
-            </thead>
-            <tbody>
-              {tableData.map((item) => (
-                <React.Fragment key={item.label}>
-                  <tr className="border-b border-border/50">
-                    <td
-                      rowSpan={3}
-                      className="py-2 sm:py-3 px-1 sm:px-2 font-medium whitespace-nowrap text-left align-middle border-r"
-                    >
-                      {item.label}
-                    </td>
-                    <td className="py-2 sm:py-3 px-1 sm:px-2 font-medium whitespace-nowrap text-left">
-                      目標
-                    </td>
-                    {getTableDisplayData().map((data) =>
-                      renderDataCell(
-                        data,
-                        item.targetField as EditableField,
-                        true
-                      )
-                    )}
-                  </tr>
-                  <tr className="border-b border-border/50">
-                    <td className="py-2 sm:py-3 px-1 sm:px-2 font-medium whitespace-nowrap text-left">
-                      実績
-                    </td>
-                    {getTableDisplayData().map((data) =>
-                      renderDataCell(
-                        data,
-                        item.actualField as keyof YearlyData,
-                        true
-                      )
-                    )}
-                  </tr>
-                  <tr className="border-b-2 border-border/80">
-                    <td className="py-2 sm:py-3 px-1 sm:px-2 font-medium whitespace-nowrap text-left">
-                      達成率
-                    </td>
-                    {getTableDisplayData().map((data) =>
-                      renderRateCell(
-                        data,
-                        item.targetField as keyof YearlyData,
-                        item.actualField as keyof YearlyData
-                      )
-                    )}
-                  </tr>
-                </React.Fragment>
-              ))}
-            </tbody>
-          </table>
+          <div className="overflow-x-auto">
+            <table className="w-full text-body">
+              <thead>
+                <tr className="border-b border-border/50">
+                  <th className="text-left py-2 sm:py-3 px-1 sm:px-2 font-medium w-24"></th>
+                  <th className="text-left py-2 sm:py-3 px-1 sm:px-2 font-medium">
+                    項目
+                  </th>
+                  {getTableDisplayData().map((data) => {
+                    const fiscalYear = 2025 + data.year - 1;
+                    return (
+                      <th
+                        key={data.year}
+                        className="text-right py-2 sm:py-3 px-1 sm:px-2 whitespace-nowrap font-medium"
+                      >
+                        FY{fiscalYear}
+                      </th>
+                    );
+                  })}
+                </tr>
+              </thead>
+              <tbody>
+                {tableData.map((item) => (
+                  <React.Fragment key={item.label}>
+                    <tr className="border-b border-border/50">
+                      <td
+                        rowSpan={3}
+                        className="py-2 sm:py-3 px-1 sm:px-2 font-medium whitespace-nowrap text-left align-middle border-r border-border/50"
+                      >
+                        {item.label}
+                      </td>
+                      <td className="py-2 sm:py-3 px-1 sm:px-2 font-medium whitespace-nowrap text-left">
+                        目標
+                      </td>
+                      {getTableDisplayData().map((data) =>
+                        renderDataCell(
+                          data,
+                          item.targetField as EditableField,
+                          true
+                        )
+                      )}
+                    </tr>
+                    <tr className="border-b border-border/50">
+                      <td className="py-2 sm:py-3 px-1 sm:px-2 font-medium whitespace-nowrap text-left">
+                        実績
+                      </td>
+                      {getTableDisplayData().map((data) =>
+                        renderDataCell(
+                          data,
+                          item.actualField as keyof YearlyData,
+                          true
+                        )
+                      )}
+                    </tr>
+                    <tr className="border-b border-border/50">
+                      <td className="py-2 sm:py-3 px-1 sm:px-2 font-medium whitespace-nowrap text-left">
+                        達成率
+                      </td>
+                      {getTableDisplayData().map((data) =>
+                        renderRateCell(
+                          data,
+                          item.targetField as keyof YearlyData,
+                          item.actualField as keyof YearlyData
+                        )
+                      )}
+                    </tr>
+                  </React.Fragment>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>

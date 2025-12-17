@@ -434,17 +434,13 @@ const MandalaChart: React.FC = () => {
           charts[cell.id] = {
             centerId: cell.id,
             centerTitle: cell.title,
-            cells: Array.from({ length: 10 }, (_, i) => {
-              const inheritedPlMetric = cell.plMetric;
-              return {
-                id: `${cell.id}_minor_${i + 1}`,
-                title: "",
-                achievement: 0,
-                status: "not_started" as const,
-                isChecked: false,
-                plMetric: inheritedPlMetric,
-              };
-            }),
+            cells: Array.from({ length: 10 }, (_, i) => ({
+              id: `${cell.id}_minor_${i + 1}`,
+              title: "",
+              achievement: 0,
+              status: "not_started" as const,
+              isChecked: false,
+            })),
           };
           hasChanges = true;
         } else {
@@ -456,11 +452,10 @@ const MandalaChart: React.FC = () => {
       });
     });
     
-    // 変更がある場合のみ更新
     if (hasChanges) {
       setMinorCharts(charts);
     }
-  }, [middleCharts]); // minorChartsを依存配列から削除
+  }, [middleCharts]);
 
   const getCellStatus = (achievement: number): MandalaCell["status"] => {
     if (achievement >= 100) return "achieved";
@@ -555,18 +550,12 @@ const MandalaChart: React.FC = () => {
         },
       }));
     } else if (cellType === 'minor' && selectedMiddleCellId) {
-      const plMetric = 
-        goalType === 'revenue' ? 'revenue' :
-        goalType === 'grossProfit' ? 'grossProfit' :
-        goalType === 'operatingProfit' ? 'operatingProfit' :
-        undefined;
-
       setMinorCharts({
         ...minorCharts,
         [selectedMiddleCellId]: {
           ...minorCharts[selectedMiddleCellId],
           cells: minorCharts[selectedMiddleCellId].cells.map((c) =>
-            c.id === cellId ? { ...c, title: goal, plMetric } : c
+            c.id === cellId ? { ...c, title: goal } : c
           ),
         },
       });
@@ -575,14 +564,8 @@ const MandalaChart: React.FC = () => {
 
   const handleMinorCheck = (minorCellId: string) => {
     if (!selectedMiddleCellId || !minorCharts[selectedMiddleCellId]) return;
-
+  
     const chart = minorCharts[selectedMiddleCellId];
-    const targetCell = chart.cells.find((c) => c.id === minorCellId);
-
-    if (targetCell?.plMetric) {
-      return;
-    }
-
     const updatedCells = chart.cells.map((cell) => {
       if (cell.id === minorCellId) {
         const newChecked = !cell.isChecked;
@@ -1057,7 +1040,8 @@ const MandalaChart: React.FC = () => {
                     {cell.title && (
                       <button
                         onClick={() => handleMajorCellClick(cell.id)}
-                        className="opacity-0 group-hover:opacity-100 transition-opacity text-note text-primary hover:text-primary/80 font-semibold bg-white/90 rounded px-3 py-1 shadow-md cursor-pointer z-30 mt-2"
+                        className="opacity-0 group-hover:opacity-100 transition-opacity text-note text-primary hover:text-primary/80 font-semibold bg-white/90 rounded-full px-4 py-2 shadow-md cursor-pointer z-30 mt-2"
+                        style={{ width: '140px' }}
                       >
                         中目標を設定 →
                       </button>
@@ -1067,7 +1051,22 @@ const MandalaChart: React.FC = () => {
               );
             })}
           </div>
-          <div className="hidden lg:flex flex-shrink-0">
+          <div className="hidden lg:flex absolute items-start" style={{ gap: '8px', right: '0px', top: '-10px' }}>
+            <p style={{
+              position: 'absolute',
+              right: '92px',
+              top: '10px',
+              fontFamily: 'Inter',
+              fontWeight: 400,
+              fontSize: '12px',
+              lineHeight: '100%',
+              color: '#9CA3AF',
+              whiteSpace: 'nowrap',
+              visibility: 'hidden'
+            }}>
+              今は大目標を表示しています
+            </p>
+            <div style={{ width: '40px', height: '40px', visibility: 'hidden' }}></div>
             <LevelIndicator />
           </div>
         </div>
@@ -1087,30 +1086,17 @@ const MandalaChart: React.FC = () => {
   
     return (
       <div className="space-y-6">
-        <div className="flex flex-col lg:flex-row justify-center items-start gap-8">
-          <div className="relative">
-            <button
-              onClick={handleBackToMajor}
-              className="absolute flex items-center justify-center w-10 h-10 bg-white hover:bg-gray-50 rounded-full shadow-md transition-colors cursor-pointer"
-              style={{
-                left: '-60px',
-                top: '0px'
-              }}
-              title="大目標に戻る"
-            >
-              <ArrowLeft className="w-5 h-5 text-primary" style={{ transform: 'rotate(90deg)' }} />
-            </button>
-  
-            <div 
-              className="grid grid-cols-3"
-              style={{
-                width: '632px',
-                height: '632px',
-                gap: '16px',
-                position: 'relative'
-              }}
-            >
-              {gridOrder.map((cellIndex) => {
+        <div className="flex flex-col lg:flex-row justify-center items-start gap-8 relative">
+          <div 
+            className="grid grid-cols-3"
+            style={{
+              width: '632px',
+              height: '632px',
+              gap: '16px',
+              position: 'relative'
+            }}
+          >
+            {gridOrder.map((cellIndex) => {
                 if (cellIndex === null) {
                   return (
                     <div
@@ -1199,7 +1185,7 @@ const MandalaChart: React.FC = () => {
                     hasChanges={cellChanged}
                   >
                     <div 
-                      className="relative z-10 text-center flex flex-col h-full group"
+                      className="relative z-10 text-center flex flex-col items-center h-full group"
                       onMouseEnter={() => setHoveredCellId(cell.id)}
                       onMouseLeave={() => setHoveredCellId(null)}
                     >
@@ -1285,7 +1271,8 @@ const MandalaChart: React.FC = () => {
                       {cell.title && (
                         <button
                           onClick={() => handleMiddleCellClick(cell.id)}
-                          className="opacity-0 group-hover:opacity-100 transition-opacity text-note text-primary hover:text-primary/80 font-semibold bg-white/90 rounded px-3 py-1 shadow-md cursor-pointer z-30 mt-2"
+                          className="opacity-0 group-hover:opacity-100 transition-opacity text-note text-primary hover:text-primary/80 font-semibold bg-white/90 rounded-full px-4 py-2 shadow-md cursor-pointer z-30 mt-2"
+                          style={{ width: '140px' }}
                         >
                           小目標を設定 →
                         </button>
@@ -1295,11 +1282,30 @@ const MandalaChart: React.FC = () => {
                 );
               })}
             </div>
-          </div>
-  
-          <div className="hidden lg:flex flex-shrink-0">
-            <LevelIndicator />
-          </div>
+
+            <div className="hidden lg:flex absolute items-start" style={{ gap: '8px', right: '0px', top: '-10px' }}>
+              <p style={{
+                position: 'absolute',
+                right: '62px',
+                top: '10px',
+                fontFamily: 'Inter',
+                fontWeight: 400,
+                fontSize: '12px',
+                lineHeight: '100%',
+                color: '#9CA3AF',
+                whiteSpace: 'nowrap'
+              }}>
+                今は中目標を表示しています
+              </p>
+              <button
+                onClick={handleBackToMajor}
+                className="flex items-center justify-center w-10 h-10 bg-white hover:bg-gray-50 rounded-full shadow-md transition-colors cursor-pointer"
+                title="大目標に戻る"
+              >
+                <ArrowLeft className="w-5 h-5 text-primary" style={{ transform: 'rotate(90deg)' }} />
+              </button>
+              <LevelIndicator />
+            </div>
         </div>
       </div>
     );
@@ -1326,54 +1332,23 @@ const MandalaChart: React.FC = () => {
         ? middleChartOfSelectedMajor.cells[middleCellIndex]
         : null;
   
-    return (
-      <div className="flex flex-col lg:flex-row justify-center items-start gap-8">
-        <div className="max-w-xl flex-1 space-y-6 w-full relative">
-          <button
-            onClick={handleBackToMiddle}
-            className="absolute flex items-center justify-center w-10 h-10 bg-white hover:bg-gray-50 rounded-full shadow-md transition-colors cursor-pointer"
-            style={{
-              left: '-60px',
-              top: '0px'
-            }}
-            title="中目標に戻る"
-          >
-            <ArrowLeft className="w-5 h-5 text-primary" style={{ transform: 'rotate(90deg)' }} />
-          </button>
-  
-          <div className="w-full">
-            {middleCell && (
-              <p 
-                style={{
-                  color: '#13AE67',
-                  fontFamily: 'Inter',
-                  fontWeight: 400,
-                  fontSize: '12px',
-                  lineHeight: '100%',
-                  letterSpacing: '0%',
-                  textAlign: 'center',
-                  marginBottom: '16px',
-                  position: 'relative',
-                  left: '20px'
+        return (
+          <div className="flex flex-col lg:flex-row justify-center items-start gap-8 relative">
+            <div className="flex-1 space-y-6" style={{ maxWidth: '660px' }}>
+              <div className="w-full">
+                <div 
+                  style={{
+                    width: '660px',
+                  height: '96px',
+                  borderRadius: '20px',
+                  background: '#FFFFFF',
+                  boxShadow: '0px 4px 12px 0px rgba(72, 82, 84, 0.1)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: '16px'
                 }}
               >
-                中目標 {middleCellIndex + 1}
-              </p>
-            )}
-  
-            <div 
-              style={{
-                width: '660px',
-                height: '96px',
-                borderRadius: '20px',
-                background: '#FFFFFF',
-                boxShadow: '0px 4px 12px 0px rgba(72, 82, 84, 0.1)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                padding: '16px'
-              }}
-            >
               <p
                 style={{
                   fontFamily: 'Inter',
@@ -1394,7 +1369,6 @@ const MandalaChart: React.FC = () => {
   
           <div className="space-y-4">
             {minorChart.cells.map((cell) => {
-              const isPLMetric = !!cell.plMetric;
               const isCellHovered = hoveredCellId === cell.id;
               const cellChanged = isMinorCellChanged(cell.id);
   
@@ -1413,12 +1387,6 @@ const MandalaChart: React.FC = () => {
                   }}
                   onMouseEnter={() => setHoveredCellId(cell.id)}
                   onMouseLeave={() => setHoveredCellId(null)}
-                  onClick={() => {
-                    // ★ セル全体をクリックしたときにモーダルを開く
-                    if (!cell.title) {
-                      openGoalInputModal(cell.id, 'minor', cell.title);
-                    }
-                  }}
                 >
                   {isCellHovered && !cell.title && (
                     <div
@@ -1440,19 +1408,17 @@ const MandalaChart: React.FC = () => {
                   
                   <button
                     onClick={(e) => {
-                      // ★ チェックボックスのクリックイベントが親に伝播しないようにする
                       e.stopPropagation();
                       handleMinorCheck(cell.id);
                     }}
-                    disabled={!cell.title || isPLMetric}
+                    disabled={!cell.title}
                     className="flex-shrink-0 flex items-center justify-center transition-all relative"
                     style={{
                       width: '24px',
                       height: '24px',
-                      cursor: cell.title && !isPLMetric ? 'pointer' : 'not-allowed',
-                      opacity: !cell.title || isPLMetric ? 0.5 : 1
+                      cursor: cell.title ? 'pointer' : 'not-allowed',
+                      opacity: !cell.title ? 0.5 : 1
                     }}
-                    title={isPLMetric ? "PL実績により自動で反映されます" : ""}
                   >
                     {cell.isChecked ? (
                       <>
@@ -1491,13 +1457,23 @@ const MandalaChart: React.FC = () => {
                   </button>
 
                   <div className="flex-1 min-w-0 flex items-center">
-                    <div
-                      onClick={(e) => {
-                        // ★ テキスト部分をクリックしたときにモーダルを開く
-                        e.stopPropagation();
-                        openGoalInputModal(cell.id, 'minor', cell.title);
+                    <input
+                      type="text"
+                      value={cell.title}
+                      onChange={(e) => {
+                        const newTitle = e.target.value;
+                        setMinorCharts({
+                          ...minorCharts,
+                          [selectedMiddleCellId!]: {
+                            ...minorCharts[selectedMiddleCellId!],
+                            cells: minorCharts[selectedMiddleCellId!].cells.map((c) =>
+                              c.id === cell.id ? { ...c, title: newTitle } : c
+                            ),
+                          },
+                        });
                       }}
-                      className="w-full bg-transparent border-none focus:outline-none font-medium cursor-pointer"
+                      placeholder=""
+                      className="w-full bg-transparent border-none focus:outline-none font-medium"
                       style={{
                         fontFamily: 'Inter',
                         fontWeight: 700,
@@ -1506,38 +1482,37 @@ const MandalaChart: React.FC = () => {
                         letterSpacing: '0%',
                         color: '#13AE67',
                         padding: '0',
-                        textAlign: 'left',
-                        whiteSpace: 'pre-wrap'
+                        textAlign: 'left'
                       }}
-                    >
-                      {cell.title || ''}
-                    </div>
+                    />
                   </div>
-
-                  {isPLMetric && cell.title && (
-                    <p 
-                      style={{
-                        position: 'absolute',
-                        bottom: '4px',
-                        right: '12px',
-                        fontFamily: 'Inter',
-                        fontSize: '10px',
-                        color: '#6B7280',
-                        lineHeight: '1',
-                        margin: 0,
-                        pointerEvents: 'none'
-                      }}
-                    >
-                      📊 PL実績により自動で反映されます
-                    </p>
-                  )}
                 </div>
               );
             })}
           </div>
         </div>
   
-        <div className="hidden lg:flex flex-shrink-0">
+        <div className="hidden lg:flex absolute items-start" style={{ gap: '8px', right: '0px', top: '-10px' }}>
+          <p style={{
+            position: 'absolute',
+            right: '62px',
+            top: '10px',
+            fontFamily: 'Inter',
+            fontWeight: 400,
+            fontSize: '12px',
+            lineHeight: '100%',
+            color: '#9CA3AF',
+            whiteSpace: 'nowrap'
+          }}>
+            今は小目標を表示しています
+          </p>
+          <button
+            onClick={handleBackToMiddle}
+            className="flex items-center justify-center w-10 h-10 bg-white hover:bg-gray-50 rounded-full shadow-md transition-colors cursor-pointer"
+            title="中目標に戻る"
+          >
+            <ArrowLeft className="w-5 h-5 text-primary" style={{ transform: 'rotate(90deg)' }} />
+          </button>
           <LevelIndicator />
         </div>
       </div>

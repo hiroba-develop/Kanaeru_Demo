@@ -99,7 +99,7 @@ const GoalInputModal: React.FC<GoalInputModalProps> = ({
         }}
       >
         {/* ヘッダー */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-100">
+        <div className="flex items-center justify-between p-6" style={{ boxShadow: '0 1px 0 0 rgba(229, 231, 235, 0.5)' }}>
           <h2
             style={{
               fontFamily: 'Inter',
@@ -133,15 +133,17 @@ const GoalInputModal: React.FC<GoalInputModalProps> = ({
                   marginBottom: '24px'
                 }}
               >
-                目標のタイプを選択してください
+                目標を具体的に決めていきましょう
+                <br />
+                決まっていなければ空欄で構いません
               </p>
 
               <button
                 onClick={() => handleTypeSelect('qualitative')}
-                className="w-full p-4 rounded-2xl border-2 transition-all hover:border-primary hover:bg-green-50"
+                className="w-full p-4 rounded-2xl transition-all hover:bg-green-50"
                 style={{
-                  borderColor: '#E5E7EB',
-                  background: '#FFFFFF'
+                  background: '#FFFFFF',
+                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)'
                 }}
               >
                 <div className="text-left">
@@ -154,7 +156,7 @@ const GoalInputModal: React.FC<GoalInputModalProps> = ({
                       marginBottom: '4px'
                     }}
                   >
-                    定性的な目標
+                    目標が叶った時のイメージを言葉にしてみましょう
                   </p>
                   <p
                     style={{
@@ -164,17 +166,17 @@ const GoalInputModal: React.FC<GoalInputModalProps> = ({
                       color: '#9CA3AF'
                     }}
                   >
-                    例: 新規顧客を100社獲得、社員満足度向上
+                    例: 新しいパソコンを買えるようになっている
                   </p>
                 </div>
               </button>
 
               <button
                 onClick={() => handleTypeSelect('revenue')}
-                className="w-full p-4 rounded-2xl border-2 transition-all hover:border-primary hover:bg-green-50"
+                className="w-full p-4 rounded-2xl transition-all hover:bg-green-50"
                 style={{
-                  borderColor: '#E5E7EB',
-                  background: '#FFFFFF'
+                  background: '#FFFFFF',
+                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)'
                 }}
               >
                 <div className="text-left">
@@ -187,7 +189,7 @@ const GoalInputModal: React.FC<GoalInputModalProps> = ({
                       marginBottom: '4px'
                     }}
                   >
-                    売上目標
+                    そのために売上はいくら必要ですか？
                   </p>
                   <p
                     style={{
@@ -204,10 +206,10 @@ const GoalInputModal: React.FC<GoalInputModalProps> = ({
 
               <button
                 onClick={() => handleTypeSelect('grossProfit')}
-                className="w-full p-4 rounded-2xl border-2 transition-all hover:border-primary hover:bg-green-50"
+                className="w-full p-4 rounded-2xl transition-all hover:bg-green-50"
                 style={{
-                  borderColor: '#E5E7EB',
-                  background: '#FFFFFF'
+                  background: '#FFFFFF',
+                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)'
                 }}
               >
                 <div className="text-left">
@@ -220,7 +222,7 @@ const GoalInputModal: React.FC<GoalInputModalProps> = ({
                       marginBottom: '4px'
                     }}
                   >
-                    粗利益目標
+                    そのために粗利益はいくら必要ですか？
                   </p>
                   <p
                     style={{
@@ -237,10 +239,10 @@ const GoalInputModal: React.FC<GoalInputModalProps> = ({
 
               <button
                 onClick={() => handleTypeSelect('operatingProfit')}
-                className="w-full p-4 rounded-2xl border-2 transition-all hover:border-primary hover:bg-green-50"
+                className="w-full p-4 rounded-2xl transition-all hover:bg-green-50"
                 style={{
-                  borderColor: '#E5E7EB',
-                  background: '#FFFFFF'
+                  background: '#FFFFFF',
+                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)'
                 }}
               >
                 <div className="text-left">
@@ -253,7 +255,7 @@ const GoalInputModal: React.FC<GoalInputModalProps> = ({
                       marginBottom: '4px'
                     }}
                   >
-                    営業利益目標
+                    そのために営業利益はいくら必要ですか？
                   </p>
                   <p
                     style={{
@@ -290,17 +292,17 @@ const GoalInputModal: React.FC<GoalInputModalProps> = ({
                     fontFamily: 'Inter',
                     fontWeight: 500,
                     fontSize: '14px',
-                    color: '#1E1F1F',
+                    color: '#13AE67',
                     display: 'block',
                     marginBottom: '8px'
                   }}
                 >
-                  目標を入力
+                  目標が叶った時のイメージを言葉にしてみましょう
                 </label>
                 <textarea
                   value={goalText}
                   onChange={(e) => setGoalText(e.target.value)}
-                  placeholder="例: 新規顧客を100社獲得する"
+                  placeholder="例: 新しいパソコンを買えるようになっている"
                   className="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary placeholder-gray-200"
                   style={{
                     fontFamily: 'Inter',
@@ -456,14 +458,15 @@ const GoalInputModal: React.FC<GoalInputModalProps> = ({
 
         {/* フッター */}
         {selectedType && (
-          <div className="p-6 border-t border-gray-100 flex gap-3">
+          <div className="p-6 flex gap-3" style={{ boxShadow: '0 -1px 0 0 rgba(229, 231, 235, 0.5)' }}>
             <button
-              onClick={onClose}
-              className="flex-1 py-3 rounded-full border-2 border-gray-300 font-medium transition-colors hover:bg-gray-50"
+              onClick={handleBack}
+              className="flex-1 py-3 rounded-full font-medium transition-colors hover:bg-gray-50"
               style={{
                 fontFamily: 'Inter',
                 fontSize: '14px',
-                color: '#6B7280'
+                color: '#6B7280',
+                boxShadow: '0 0 0 2px #E5E7EB'
               }}
             >
               キャンセル
