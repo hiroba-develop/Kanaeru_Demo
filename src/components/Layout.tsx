@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
-  Map,
+  BarChart3,
   Menu,
   X,
   Users,
@@ -103,7 +103,11 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     {
       name: "年次PL",
       href: "/yearlyBudgetActual",
-      icon: Map,
+      icon: ({ className }: { className?: string }) => (
+        <div className={`bg-primary text-white p-1.5 rounded-full flex items-center justify-center ${className || ''}`} style={{ width: '24px', height: '24px' }}>
+          <BarChart3 className="w-3 h-3" />
+        </div>
+      ),
       disabled: false,
       roleRequired: ["0", "1", "2"],
     },
@@ -333,7 +337,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                           : "text-gray-700 hover:bg-gray-100"
                       }`}
                     >
-                      <item.icon className="h-4 w-4 xl:h-5 xl:w-5 mr-2 xl:mr-3 flex-shrink-0" />
+                      <item.icon className="h-4 w-4 xl:h-5 xl:w-5 mr-4 flex-shrink-0" />
                       <span className="text-xs xl:text-sm">{item.name}</span>
                     </Link>
                   );
@@ -375,7 +379,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                         : "text-gray-700 hover:bg-gray-100"
                     }`}
                   >
-                    <item.icon className="h-4 w-4 xl:h-5 xl:w-5 mr-2 xl:mr-3 flex-shrink-0" />
+                    <item.icon className="h-4 w-4 xl:h-5 xl:w-5 mr-4 flex-shrink-0" />
                     <span className="text-xs xl:text-sm">{item.name}</span>
                   </Link>
                   );
@@ -550,7 +554,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                         }`}
                         onClick={() => setSidebarOpen(false)}
                       >
-                        <item.icon className="h-4 w-4 sm:h-5 sm:w-5 mr-2 sm:mr-3 flex-shrink-0" />
+                        <item.icon className="h-4 w-4 sm:h-5 sm:w-5 mr-4 flex-shrink-0" />
                         <span className="text-xs sm:text-sm">{item.name}</span>
                       </Link>
                     );
@@ -593,7 +597,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                         }`}
                         onClick={() => setSidebarOpen(false)}
                       >
-                        <item.icon className="h-4 w-4 sm:h-5 sm:w-5 mr-2 sm:mr-3 flex-shrink-0" />
+                        <item.icon className="h-4 w-4 sm:h-5 sm:w-5 mr-4 flex-shrink-0" />
                         <span className="text-xs sm:text-sm">{item.name}</span>
                       </Link>
                     );

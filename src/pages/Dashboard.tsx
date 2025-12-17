@@ -120,7 +120,7 @@ const Dashboard: React.FC = () => {
   return (
     <div className="min-h-screen bg-background">
       <div className="max-w-7xl mx-auto p-4 space-y-6">
-        <div className="bg-background rounded-card-lg shadow-card border border-border p-6">
+        <div className="bg-background rounded-card-lg p-6" style={{ boxShadow: '0 2px 12px rgba(0, 0, 0, 0.08)' }}>
           <h2 className="text-heading font-bold text-text text-center mb-6">
             今日、どっちチェックする?
           </h2>
@@ -128,7 +128,8 @@ const Dashboard: React.FC = () => {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 bg-">
             {/* マンダラチャート セクション */}
             <div
-              className="card bg-background cursor-pointer hover:shadow-card-hover transition-all group"
+              className="bg-background cursor-pointer hover:shadow-card-hover transition-all group p-6 rounded-card-lg"
+              style={{ boxShadow: '0 2px 12px rgba(0, 0, 0, 0.08)' }}
               onClick={() => navigate("/mandalaChart")}
             >
               <h2 className="text-heading font-bold text-text mb-6">
@@ -210,25 +211,23 @@ const Dashboard: React.FC = () => {
 
             {/* 予実管理（年次PL） セクション */}
             <div
-              className="card bg-gradient-to-br bg-background to-primary/5 border-2 cursor-pointer hover:shadow-card-hover transition-all group"
+              className="bg-gradient-to-br bg-background to-primary/5 cursor-pointer hover:shadow-card-hover transition-all group p-6 rounded-card-lg"
+              style={{ boxShadow: '0 2px 12px rgba(0, 0, 0, 0.08)' }}
               onClick={() => navigate("/yearlyBudgetActual")}
             >
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center space-x-3">
-                  <div className="bg-primary text-white p-3 rounded-card-lg">
-                    <BarChart3 className="w-6 h-6" />
-                  </div>
+                <div className="bg-primary text-white p-3 rounded-full">
+                  <BarChart3 className="w-6 h-6" />
+                </div>
                   <div>
-                    <h2 className="text-body font-bold text-text">年次PL</h2>
-                    <p className="text-note text-text/70">
-                      年間の業績をひと目でチェック
-                    </p>
+                    <h2 className="text-heading font-bold text-text">年次PL</h2>
                   </div>
                 </div>
               </div>
 
               {/* 年間の予実 */}
-              <div className="bg-background rounded-card-lg p-4 mb-4 border border-primary/20">
+              <div className="bg-background rounded-card-lg p-4 mb-4" style={{ boxShadow: '0 1px 6px rgba(0, 0, 0, 0.06)' }}>
                 <div className="text-note text-text/70 mb-3">
                   {currentYearData.year}年の実績
                 </div>
@@ -317,13 +316,21 @@ const Dashboard: React.FC = () => {
           </div>
         </div>
 
-        {/* In the works セクション */}
-        <div className="card">
+        {/* In the works セクション */}        
+        <div className="p-6 rounded-card-lg" style={{ boxShadow: '0 2px 12px rgba(0, 0, 0, 0.08)' }}>
           <h2 className="text-heading font-bold text-text mb-4">
             In the works...
           </h2>
-          <div className="h-40 flex items-center justify-center bg-background rounded-card-lg border-2 border-dashed border-border">
-            <p className="text-body text-text/40">Coming Soon</p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="h-40 flex items-center justify-center bg-background rounded-card-lg" style={{ boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)' }}>
+              <p className="text-body text-text/40">Coming Soon</p>
+            </div>
+            <div className="h-40 flex items-center justify-center bg-background rounded-card-lg" style={{ boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)' }}>
+              <p className="text-body text-text/40">Coming Soon</p>
+            </div>
+            <div className="h-40 flex items-center justify-center bg-background rounded-card-lg" style={{ boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)' }}>
+              <p className="text-body text-text/40">Coming Soon</p>
+            </div>
           </div>
         </div>
       </div>
