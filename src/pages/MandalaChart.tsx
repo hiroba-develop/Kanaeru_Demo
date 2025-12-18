@@ -99,29 +99,17 @@ const MultiRingProgress: React.FC<MultiRingProgressProps> = ({
   size = 120,
   offsetY = 0,
 }) => {
-  const rings: React.ReactNode[] = [];
-  const strokeWidth = 2;
-  const gap = 4;
+  const strokeWidth = 3;
+  const cx = size / 2;
+  const cy = size / 2;
+  const radius = size / 2 - strokeWidth / 2 - 5;
 
-  for (let i = 0; i < totalRings; i++) {
-    const radius = size / 2 - strokeWidth / 2 - i * gap;
-    if (radius <= 0) break;
-
-    const color = "#d9f2e7";
-
-    rings.push(
-      <circle
-        key={i}
-        cx={size / 2}
-        cy={size / 2}
-        r={radius}
-        fill="none"
-        stroke={color}
-        strokeWidth={strokeWidth}
-        opacity={i < filledRings ? 1 : 0.35}
-      />
-    );
-  }
+  // 達成率を計算（0から1の範囲）
+  const ratio = totalRings > 0 ? filledRings / totalRings : 0;
+  
+  const circumference = 2 * Math.PI * radius;
+  const dashArray = circumference;
+  const dashOffset = -circumference * (1 - ratio);
 
   return (
     <svg
@@ -134,7 +122,18 @@ const MultiRingProgress: React.FC<MultiRingProgressProps> = ({
         transform: `translate(-50%, calc(-50% + ${offsetY}px))`
       }}
     >
-      {rings}
+      <circle
+        cx={cx}
+        cy={cy}
+        r={radius}
+        fill="none"
+        stroke="#d9f2e7"
+        strokeWidth={strokeWidth}
+        strokeDasharray={dashArray}
+        strokeDashoffset={dashOffset}
+        transform={`rotate(-90 ${cx} ${cy})`}
+        strokeLinecap="round"
+      />
     </svg>
   );
 };
@@ -144,13 +143,11 @@ interface MandalaCellFrameProps {
   visualStatus?: "not_started" | "in_progress" | "achieved";
   children: React.ReactNode;
   isHoverable?: boolean;
-  hasChanges?: boolean;
 }
 
 const MandalaCellFrame: React.FC<MandalaCellFrameProps> = ({
   children,
   isHoverable = false,
-  hasChanges = false,
 }) => {
 
   const base =
@@ -169,7 +166,7 @@ const MandalaCellFrame: React.FC<MandalaCellFrameProps> = ({
         borderRadius: '20px',
         boxShadow: '0px 4px 12px 0px rgba(72, 82, 84, 0.1)',
         border: 'none',
-        background: hasChanges ? 'rgba(19, 174, 103, 0.05)' : '#FFFFFF'
+        background: '#FFFFFF'
       }}
     >
       <div className="relative z-10 h-full flex flex-col">{children}</div>
@@ -192,9 +189,6 @@ const MandalaChart: React.FC = () => {
   const [hoveredCellId, setHoveredCellId] = useState<string | null>(null);
 
   // 変更追跡用の状態
-  const [savedCenterGoal, setSavedCenterGoal] = useState("");
-  const [savedMajorCells, setSavedMajorCells] = useState<MandalaCell[]>([]);
-  const [savedMiddleCharts, setSavedMiddleCharts] = useState<{[key: string]: MandalaSubChart}>({});
   const [savedMinorCharts, setSavedMinorCharts] = useState<{[key: string]: MandalaSubChart}>({});
 
   // モーダル用のstate
@@ -294,17 +288,11 @@ const MandalaChart: React.FC = () => {
 
   // 保存状態を更新する関数
   const updateSavedState = useCallback(() => {
-    setSavedCenterGoal(centerGoal);
-    setSavedMajorCells(JSON.parse(JSON.stringify(majorCells)));
-    setSavedMiddleCharts(JSON.parse(JSON.stringify(middleCharts)));
     setSavedMinorCharts(JSON.parse(JSON.stringify(minorCharts)));
-  }, [centerGoal, majorCells, middleCharts, minorCharts]);
+  }, [minorCharts]);
 
   // 初期保存状態を設定
   useEffect(() => {
-    setSavedCenterGoal(centerGoal);
-    setSavedMajorCells(JSON.parse(JSON.stringify(majorCells)));
-    setSavedMiddleCharts(JSON.parse(JSON.stringify(middleCharts)));
     setSavedMinorCharts(JSON.parse(JSON.stringify(minorCharts)));
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -562,6 +550,28 @@ const MandalaChart: React.FC = () => {
     }
   };
 
+  // handleMinorCheck関数の前に追加
+  const saveMinorCell = (cellId: string) => {
+    const chartId = Object.keys(minorCharts).find(key =>
+      minorCharts[key].cells.some(c => c.id === cellId)
+    );
+    if (!chartId) return;
+
+    // 現在のセルの値で保存状態を更新
+    const currentCell = minorCharts[chartId].cells.find(c => c.id === cellId);
+    if (!currentCell) return;
+
+    setSavedMinorCharts(prev => ({
+      ...prev,
+      [chartId]: {
+        ...prev[chartId],
+        cells: prev[chartId].cells.map(c =>
+          c.id === cellId ? { ...currentCell } : c
+        )
+      }
+    }));
+  };
+
   const handleMinorCheck = (minorCellId: string) => {
     if (!selectedMiddleCellId || !minorCharts[selectedMiddleCellId]) return;
   
@@ -573,7 +583,7 @@ const MandalaChart: React.FC = () => {
           ? "achieved"
           : "not_started";
         const newAchievement = newChecked ? 100 : 0;
-
+  
         if (newChecked && cell.title) {
           setAchievementPopup({
             isOpen: true,
@@ -581,7 +591,7 @@ const MandalaChart: React.FC = () => {
             level: "minor",
           });
         }
-
+  
         return {
           ...cell,
           isChecked: newChecked,
@@ -591,15 +601,23 @@ const MandalaChart: React.FC = () => {
       }
       return cell;
     });
-
+  
+    const updatedChart = {
+      ...chart,
+      cells: updatedCells,
+    };
+  
     setMinorCharts({
       ...minorCharts,
-      [selectedMiddleCellId]: {
-        ...chart,
-        cells: updatedCells,
-      },
+      [selectedMiddleCellId]: updatedChart,
     });
-
+  
+    // チェック状態変更時に自動的に保存状態も更新
+    setSavedMinorCharts(prev => ({
+      ...prev,
+      [selectedMiddleCellId]: updatedChart,
+    }));
+  
     updateMiddleAchievement(selectedMiddleCellId, updatedCells);
   };
 
@@ -739,41 +757,21 @@ const MandalaChart: React.FC = () => {
   const getMiddleCellProgress = (middleCellId: string) => {
     const minorChart = minorCharts[middleCellId];
     if (!minorChart) {
-      return { filledRings: 0, totalRings: 0, isCompleted: false };
+      return { filledRings: 0, totalRings: 10, isCompleted: false };
     }
-
+  
     const checked = minorChart.cells.filter((c) => c.isChecked).length;
-    const totalRings = Math.min(checked, 10);
-
+    const totalRings = 10; // 小目標は常に10個
+    const filledRings = checked; // 達成した数
+  
     return {
-      filledRings: totalRings,
-      totalRings,
-      isCompleted: totalRings === 10,
+      filledRings: filledRings,
+      totalRings: totalRings,
+      isCompleted: filledRings === 10,
     };
   };
 
-  // 変更があるかチェックする関数
-  const isCenterGoalChanged = () => {
-    return centerGoal !== savedCenterGoal;
-  };
-
-  const isMajorCellChanged = (cellId: string) => {
-    const current = majorCells.find(c => c.id === cellId);
-    const saved = savedMajorCells.find(c => c.id === cellId);
-    return JSON.stringify(current) !== JSON.stringify(saved);
-  };
-
-  const isMiddleCellChanged = (cellId: string) => {
-    const majorId = Object.keys(middleCharts).find(key => 
-      middleCharts[key].cells.some(c => c.id === cellId)
-    );
-    if (!majorId) return false;
-
-    const currentCell = middleCharts[majorId]?.cells.find(c => c.id === cellId);
-    const savedCell = savedMiddleCharts[majorId]?.cells.find(c => c.id === cellId);
-    return JSON.stringify(currentCell) !== JSON.stringify(savedCell);
-  };
-
+  // 変更があるかチェックする関数（小目標のみ）
   const isMinorCellChanged = (cellId: string) => {
     const chartId = Object.keys(minorCharts).find(key =>
       minorCharts[key].cells.some(c => c.id === cellId)
@@ -838,7 +836,6 @@ const MandalaChart: React.FC = () => {
             {gridOrder.map((cellIndex) => {
               if (cellIndex === null) {
                 const isCenterHovered = hoveredCellId === 'center';
-                const centerChanged = isCenterGoalChanged();
                 
                 return (
                   <div
@@ -850,7 +847,7 @@ const MandalaChart: React.FC = () => {
                       borderRadius: '20px',
                       boxShadow: '0px 4px 12px 0px rgba(72, 82, 84, 0.1)',
                       border: 'none',
-                      background: centerChanged ? 'rgba(19, 174, 103, 0.05)' : '#FFFFFF',
+                      background: '#FFFFFF',
                       position: 'relative'
                     }}
                     onMouseEnter={() => setHoveredCellId('center')}
@@ -933,7 +930,6 @@ const MandalaChart: React.FC = () => {
               const cell = majorCells[cellIndex];
               const ringRatios = getMajorRingRatios(cell.id);
               const isCellHovered = hoveredCellId === cell.id;
-              const cellChanged = isMajorCellChanged(cell.id);
   
               const mandalaCompleted =
                 ringRatios.length > 0 && ringRatios.every((r) => r >= 1);
@@ -952,7 +948,6 @@ const MandalaChart: React.FC = () => {
                   status={cell.status}
                   visualStatus={visualStatus}
                   isHoverable={true}
-                  hasChanges={cellChanged}
                 >
                   <div 
                     className="flex flex-col items-center h-full group"
@@ -998,7 +993,7 @@ const MandalaChart: React.FC = () => {
                             <MajorRingProgress
                               ringRatios={ringRatios}
                               size={190}
-                              offsetY={15}
+                              offsetY={22}
                             />
                           ) : null}
                         </>
@@ -1051,11 +1046,11 @@ const MandalaChart: React.FC = () => {
               );
             })}
           </div>
-          <div className="hidden lg:flex absolute items-start" style={{ gap: '8px', right: '0px', top: '-10px' }}>
+          <div className="hidden lg:flex fixed items-start" style={{ gap: '8px', right: '50px', top: '132px' }}>
             <p style={{
               position: 'absolute',
-              right: '92px',
-              top: '10px',
+              right: '70px',
+              top: '14px',
               fontFamily: 'Inter',
               fontWeight: 400,
               fontSize: '12px',
@@ -1164,7 +1159,6 @@ const MandalaChart: React.FC = () => {
                 const cell = middleChart.cells[cellIndex];
                 const progress = getMiddleCellProgress(cell.id);
                 const isCellHovered = hoveredCellId === cell.id;
-                const cellChanged = isMiddleCellChanged(cell.id);
   
                 const mandalaCompleted = progress.isCompleted;
   
@@ -1182,7 +1176,6 @@ const MandalaChart: React.FC = () => {
                     status={cell.status}
                     visualStatus={visualStatus}
                     isHoverable={true}
-                    hasChanges={cellChanged}
                   >
                     <div 
                       className="relative z-10 text-center flex flex-col items-center h-full group"
@@ -1230,7 +1223,7 @@ const MandalaChart: React.FC = () => {
                                 filledRings={progress.filledRings}
                                 isCompleted={false}
                                 size={190}
-                                offsetY={15}
+                                offsetY={22}
                               />
                             ) : null}
                           </>
@@ -1283,11 +1276,11 @@ const MandalaChart: React.FC = () => {
               })}
             </div>
 
-            <div className="hidden lg:flex absolute items-start" style={{ gap: '8px', right: '0px', top: '-10px' }}>
+            <div className="hidden lg:flex fixed items-start" style={{ gap: '8px', right: '120px', top: '132px' }}>
               <p style={{
                 position: 'absolute',
-                right: '62px',
-                top: '10px',
+                right: '70px',
+                top: '14px',
                 fontFamily: 'Inter',
                 fontWeight: 400,
                 fontSize: '12px',
@@ -1368,135 +1361,167 @@ const MandalaChart: React.FC = () => {
           </div>
   
           <div className="space-y-4">
-            {minorChart.cells.map((cell) => {
-              const isCellHovered = hoveredCellId === cell.id;
-              const cellChanged = isMinorCellChanged(cell.id);
-  
-              return (
-                <div
-                  key={cell.id}
-                  className="flex items-center transition-all relative group"
-                  style={{
-                    width: '636px',
-                    height: '48px',
-                    borderRadius: '20px',
-                    background: cellChanged ? 'rgba(19, 174, 103, 0.05)' : '#FFFFFF',
-                    boxShadow: '0px 4px 12px 0px rgba(72, 82, 84, 0.1)',
-                    padding: '8px 12px',
-                    gap: '12px'
-                  }}
-                  onMouseEnter={() => setHoveredCellId(cell.id)}
-                  onMouseLeave={() => setHoveredCellId(null)}
-                >
-                  {isCellHovered && !cell.title && (
-                    <div
-                      className="absolute pointer-events-none transition-opacity duration-200"
-                      style={{
-                        left: '50%',
-                        transform: 'translateX(-50%)',
-                        fontFamily: 'Inter',
-                        fontWeight: 400,
-                        fontSize: '14px',
-                        color: 'rgba(19, 174, 103, 0.5)',
-                        whiteSpace: 'nowrap',
-                        zIndex: 20
-                      }}
-                    >
-                      どんな目標にする？
-                    </div>
-                  )}
-                  
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleMinorCheck(cell.id);
-                    }}
-                    disabled={!cell.title}
-                    className="flex-shrink-0 flex items-center justify-center transition-all relative"
+          {minorChart.cells.map((cell) => {
+            const isCellHovered = hoveredCellId === cell.id;
+            const cellChanged = isMinorCellChanged(cell.id);
+
+            return (
+              <div
+                key={cell.id}
+                className="flex items-center transition-all relative group"
+                style={{
+                  width: '660px',
+                  height: '48px',
+                  borderRadius: '20px',
+                  background: cellChanged ? 'rgba(19, 174, 103, 0.05)' : '#FFFFFF',
+                  boxShadow: '0px 4px 12px 0px rgba(72, 82, 84, 0.1)',
+                  padding: '8px 12px',
+                  gap: '12px'
+                }}
+                onMouseEnter={() => setHoveredCellId(cell.id)}
+                onMouseLeave={() => setHoveredCellId(null)}
+              >
+                {isCellHovered && !cell.title && (
+                  <div
+                    className="absolute pointer-events-none transition-opacity duration-200"
                     style={{
-                      width: '24px',
-                      height: '24px',
-                      cursor: cell.title ? 'pointer' : 'not-allowed',
-                      opacity: !cell.title ? 0.5 : 1
+                      left: '50%',
+                      transform: 'translateX(-50%)',
+                      fontFamily: 'Inter',
+                      fontWeight: 400,
+                      fontSize: '14px',
+                      color: 'rgba(19, 174, 103, 0.5)',
+                      whiteSpace: 'nowrap',
+                      zIndex: 20
                     }}
                   >
-                    {cell.isChecked ? (
-                      <>
-                        <div 
-                          style={{
-                            position: 'absolute',
-                            width: '24px',
-                            height: '24px',
-                            background: '#13AE6773',
-                            borderRadius: '50%',
-                            opacity: 0.45
-                          }}
-                        />
-                        <img 
-                          src={heart_icon} 
-                          alt="完了" 
-                          style={{
-                            width: '14px',
-                            height: '12px',
-                            objectFit: 'contain',
-                            position: 'relative',
-                            zIndex: 1
-                          }}
-                        />
-                      </>
-                    ) : (
+                    どんな目標にする？
+                  </div>
+                )}
+                
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleMinorCheck(cell.id);
+                  }}
+                  disabled={!cell.title}
+                  className="flex-shrink-0 flex items-center justify-center transition-all relative"
+                  style={{
+                    width: '24px',
+                    height: '24px',
+                    cursor: cell.title ? 'pointer' : 'not-allowed',
+                    opacity: !cell.title ? 0.5 : 1
+                  }}
+                >
+                  {cell.isChecked ? (
+                    <>
                       <div 
                         style={{
+                          position: 'absolute',
                           width: '24px',
                           height: '24px',
-                          border: '2px solid #E5E7EB',
-                          borderRadius: '50%'
+                          background: '#13AE6773',
+                          borderRadius: '50%',
+                          opacity: 0.45
                         }}
                       />
-                    )}
-                  </button>
-
-                  <div className="flex-1 min-w-0 flex items-center">
-                    <input
-                      type="text"
-                      value={cell.title}
-                      onChange={(e) => {
-                        const newTitle = e.target.value;
-                        setMinorCharts({
-                          ...minorCharts,
-                          [selectedMiddleCellId!]: {
-                            ...minorCharts[selectedMiddleCellId!],
-                            cells: minorCharts[selectedMiddleCellId!].cells.map((c) =>
-                              c.id === cell.id ? { ...c, title: newTitle } : c
-                            ),
-                          },
-                        });
-                      }}
-                      placeholder=""
-                      className="w-full bg-transparent border-none focus:outline-none font-medium"
+                      <img 
+                        src={heart_icon} 
+                        alt="完了" 
+                        style={{
+                          width: '14px',
+                          height: '12px',
+                          objectFit: 'contain',
+                          position: 'relative',
+                          zIndex: 1
+                        }}
+                      />
+                    </>
+                  ) : (
+                    <div 
                       style={{
-                        fontFamily: 'Inter',
-                        fontWeight: 700,
-                        fontSize: '16px',
-                        lineHeight: '32px',
-                        letterSpacing: '0%',
-                        color: '#13AE67',
-                        padding: '0',
-                        textAlign: 'left'
+                        width: '24px',
+                        height: '24px',
+                        border: '2px solid #E5E7EB',
+                        borderRadius: '50%'
                       }}
                     />
-                  </div>
+                  )}
+                </button>
+
+                <div className="flex-1 min-w-0 flex items-center">
+                  <input
+                    type="text"
+                    value={cell.title}
+                    onChange={(e) => {
+                      const newTitle = e.target.value;
+                      setMinorCharts({
+                        ...minorCharts,
+                        [selectedMiddleCellId!]: {
+                          ...minorCharts[selectedMiddleCellId!],
+                          cells: minorCharts[selectedMiddleCellId!].cells.map((c) =>
+                            c.id === cell.id ? { ...c, title: newTitle } : c
+                          ),
+                        },
+                      });
+                    }}
+                    placeholder=""
+                    className="w-full bg-transparent font-medium"
+                    style={{
+                      fontFamily: 'Inter',
+                      fontWeight: 700,
+                      fontSize: '16px',
+                      lineHeight: '32px',
+                      letterSpacing: '0%',
+                      color: '#13AE67',
+                      padding: '0',
+                      textAlign: 'left',
+                      border: 'none',
+                      outline: 'none',
+                      boxShadow: 'none'
+                    }}
+                    onFocus={(e) => {
+                      e.target.style.outline = 'none';
+                      e.target.style.boxShadow = 'none';
+                    }}
+                  />
+                </div>
+
+                {/* 保存するボタン - 変更がある場合のみ表示 */}
+                {cellChanged && (               
+                  <button
+                  onClick={() => {
+                    // 個別のセルを保存
+                    saveMinorCell(cell.id);
+                  }}
+                  className="flex-shrink-0 transition-all hover:bg-green-600"
+                  style={{
+                    fontFamily: 'Inter',
+                    fontWeight: 600,
+                    fontSize: '12px',
+                    color: '#FFFFFF',
+                    background: '#13AE67',
+                    padding: '6px 12px',
+                    borderRadius: '20px',
+                    border: 'none',
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap'
+                  }}
+                >
+                  保存する
+                </button>
+                )}
                 </div>
               );
             })}
           </div>
         </div>
   
-        <div className="hidden lg:flex absolute items-start" style={{ gap: '8px', right: '0px', top: '-10px' }}>
+        <div className="hidden lg:flex fixed items-start" style={{ gap: '8px', right: '120px', top: '132px' }}>
           <p style={{
             position: 'absolute',
-            right: '62px',
-            top: '10px',
+            right: '70px',
+            top: '14px',
             fontFamily: 'Inter',
             fontWeight: 400,
             fontSize: '12px',

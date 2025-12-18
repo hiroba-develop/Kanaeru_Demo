@@ -26,6 +26,19 @@ const GoalInputModal: React.FC<GoalInputModalProps> = ({
   const [yearNumber, setYearNumber] = useState<string>('10');
   const [amount, setAmount] = useState<string>('');
 
+  // 既存の目標タイプを判定する関数を追加
+  const detectGoalType = (value: string): GoalType | null => {
+    if (!value) return null;
+    if (value.includes('売上')) return 'revenue';
+    if (value.includes('粗利益')) return 'grossProfit';
+    if (value.includes('営業利益')) return 'operatingProfit';
+    return 'qualitative';
+  };
+
+  // 既存の値が設定されているかチェック
+  const hasExistingGoal = initialValue.trim() !== '';
+  const existingGoalType = detectGoalType(initialValue);
+
   useEffect(() => {
     if (isOpen) {
       setGoalText(initialValue);
@@ -120,172 +133,199 @@ const GoalInputModal: React.FC<GoalInputModalProps> = ({
 
         {/* コンテンツ */}
         <div className="p-6">
-          {!selectedType ? (
-            // ステップ1: 目標タイプ選択
-            <div className="space-y-4">
+        {!selectedType ? (
+        // ステップ1: 目標タイプ選択
+        <div className="space-y-4">
+          <p
+            style={{
+              fontFamily: 'Inter',
+              fontWeight: 400,
+              fontSize: '14px',
+              color: '#6B7280',
+              textAlign: 'center',
+              marginBottom: '24px'
+            }}
+          >
+            目標を具体的に決めていきましょう
+            <br />
+            決まっていなければ空欄で構いません
+          </p>
+
+          <button
+            onClick={() => handleTypeSelect('qualitative')}
+            className="w-full p-4 rounded-2xl transition-all hover:bg-green-50"
+            style={{
+              background: '#FFFFFF',
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)'
+            }}
+          >
+            <div className="text-left">
+              <p
+                style={{
+                  fontFamily: 'Inter',
+                  fontWeight: 600,
+                  fontSize: '16px',
+                  color: '#13AE67',
+                  marginBottom: '4px'
+                }}
+              >
+                {hasExistingGoal && existingGoalType === 'qualitative'
+                  ? initialValue
+                  : '目標が叶った時のイメージを言葉にしてみましょう'}
+              </p>
               <p
                 style={{
                   fontFamily: 'Inter',
                   fontWeight: 400,
-                  fontSize: '14px',
-                  color: '#6B7280',
-                  textAlign: 'center',
-                  marginBottom: '24px'
+                  fontSize: '12px',
+                  color: '#9CA3AF',
+                  ...(hasExistingGoal && existingGoalType === 'qualitative' && {
+                    background: 'rgba(19, 174, 103, 0.1)',
+                    padding: '4px 8px',
+                    borderRadius: '20px',
+                    display: 'inline-block'
+                  })
                 }}
               >
-                目標を具体的に決めていきましょう
-                <br />
-                決まっていなければ空欄で構いません
+                {hasExistingGoal && existingGoalType === 'qualitative'
+                  ? '設定済み'
+                  : '例: 新しいパソコンを買えるようになっている'}
               </p>
-
-              <button
-                onClick={() => handleTypeSelect('qualitative')}
-                className="w-full p-4 rounded-2xl transition-all hover:bg-green-50"
-                style={{
-                  background: '#FFFFFF',
-                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)'
-                }}
-              >
-                <div className="text-left">
-                  <p
-                    style={{
-                      fontFamily: 'Inter',
-                      fontWeight: 600,
-                      fontSize: '16px',
-                      color: '#13AE67',
-                      marginBottom: '4px'
-                    }}
-                  >
-                    目標が叶った時のイメージを言葉にしてみましょう
-                  </p>
-                  <p
-                    style={{
-                      fontFamily: 'Inter',
-                      fontWeight: 400,
-                      fontSize: '12px',
-                      color: '#9CA3AF'
-                    }}
-                  >
-                    例: 新しいパソコンを買えるようになっている
-                  </p>
-                </div>
-              </button>
-
-              <button
-                onClick={() => handleTypeSelect('revenue')}
-                className="w-full p-4 rounded-2xl transition-all hover:bg-green-50"
-                style={{
-                  background: '#FFFFFF',
-                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)'
-                }}
-              >
-                <div className="text-left">
-                  <p
-                    style={{
-                      fontFamily: 'Inter',
-                      fontWeight: 600,
-                      fontSize: '16px',
-                      color: '#13AE67',
-                      marginBottom: '4px'
-                    }}
-                  >
-                    そのために売上はいくら必要ですか？
-                  </p>
-                  <p
-                    style={{
-                      fontFamily: 'Inter',
-                      fontWeight: 400,
-                      fontSize: '12px',
-                      color: '#9CA3AF'
-                    }}
-                  >
-                    年次PLと連動します
-                  </p>
-                </div>
-              </button>
-
-              <button
-                onClick={() => handleTypeSelect('grossProfit')}
-                className="w-full p-4 rounded-2xl transition-all hover:bg-green-50"
-                style={{
-                  background: '#FFFFFF',
-                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)'
-                }}
-              >
-                <div className="text-left">
-                  <p
-                    style={{
-                      fontFamily: 'Inter',
-                      fontWeight: 600,
-                      fontSize: '16px',
-                      color: '#13AE67',
-                      marginBottom: '4px'
-                    }}
-                  >
-                    そのために粗利益はいくら必要ですか？
-                  </p>
-                  <p
-                    style={{
-                      fontFamily: 'Inter',
-                      fontWeight: 400,
-                      fontSize: '12px',
-                      color: '#9CA3AF'
-                    }}
-                  >
-                    年次PLと連動します
-                  </p>
-                </div>
-              </button>
-
-              <button
-                onClick={() => handleTypeSelect('operatingProfit')}
-                className="w-full p-4 rounded-2xl transition-all hover:bg-green-50"
-                style={{
-                  background: '#FFFFFF',
-                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)'
-                }}
-              >
-                <div className="text-left">
-                  <p
-                    style={{
-                      fontFamily: 'Inter',
-                      fontWeight: 600,
-                      fontSize: '16px',
-                      color: '#13AE67',
-                      marginBottom: '4px'
-                    }}
-                  >
-                    そのために営業利益はいくら必要ですか？
-                  </p>
-                  <p
-                    style={{
-                      fontFamily: 'Inter',
-                      fontWeight: 400,
-                      fontSize: '12px',
-                      color: '#9CA3AF'
-                    }}
-                  >
-                    年次PLと連動します
-                  </p>
-                </div>
-              </button>
             </div>
-          ) : selectedType === 'qualitative' ? (
-            // ステップ2-A: 定性的目標の入力
-            <div className="space-y-4">
-              <button
-                onClick={handleBack}
+          </button>
+
+          <button
+            onClick={() => handleTypeSelect('revenue')}
+            className="w-full p-4 rounded-2xl transition-all hover:bg-green-50"
+            style={{
+              background: '#FFFFFF',
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)'
+            }}
+          >
+            <div className="text-left">
+              <p
+                style={{
+                  fontFamily: 'Inter',
+                  fontWeight: 600,
+                  fontSize: '14px',
+                  color: '#13AE67',
+                  marginBottom: '4px'
+                }}
+              >
+                {hasExistingGoal && existingGoalType === 'revenue'
+                  ? initialValue
+                  : 'そのために売上はいくら必要ですか？'}
+              </p>
+              <p
                 style={{
                   fontFamily: 'Inter',
                   fontWeight: 400,
                   fontSize: '12px',
-                  color: '#13AE67',
-                  marginBottom: '12px'
+                  color: '#9CA3AF',
+                  ...(hasExistingGoal && existingGoalType === 'revenue' && {
+                    background: 'rgba(19, 174, 103, 0.1)',
+                    padding: '4px 8px',
+                    borderRadius: '20px',
+                    display: 'inline-block'
+                  })
                 }}
               >
-                ← 目標タイプを変更
-              </button>
+                {hasExistingGoal && existingGoalType === 'revenue'
+                  ? '設定済み'
+                  : '年次PLと連動します'}
+              </p>
+            </div>
+          </button>
 
+          <button
+            onClick={() => handleTypeSelect('grossProfit')}
+            className="w-full p-4 rounded-2xl transition-all hover:bg-green-50"
+            style={{
+              background: '#FFFFFF',
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)'
+            }}
+          >
+            <div className="text-left">
+              <p
+                style={{
+                  fontFamily: 'Inter',
+                  fontWeight: 600,
+                  fontSize: '14px',
+                  color: '#13AE67',
+                  marginBottom: '4px'
+                }}
+              >
+                {hasExistingGoal && existingGoalType === 'grossProfit'
+                  ? initialValue
+                  : 'そのために粗利益はいくら必要ですか？'}
+              </p>
+              <p
+                style={{
+                  fontFamily: 'Inter',
+                  fontWeight: 400,
+                  fontSize: '12px',
+                  color: '#9CA3AF',
+                  ...(hasExistingGoal && existingGoalType === 'grossProfit' && {
+                    background: 'rgba(19, 174, 103, 0.1)',
+                    padding: '4px 8px',
+                    borderRadius: '20px',
+                    display: 'inline-block'
+                  })
+                }}
+              >
+                {hasExistingGoal && existingGoalType === 'grossProfit'
+                  ? '設定済み'
+                  : '年次PLと連動します'}
+              </p>
+            </div>
+          </button>
+
+          <button
+            onClick={() => handleTypeSelect('operatingProfit')}
+            className="w-full p-4 rounded-2xl transition-all hover:bg-green-50"
+            style={{
+              background: '#FFFFFF',
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)'
+            }}
+          >
+            <div className="text-left">
+              <p
+                style={{
+                  fontFamily: 'Inter',
+                  fontWeight: 600,
+                  fontSize: '14px',
+                  color: '#13AE67',
+                  marginBottom: '4px'
+                }}
+              >
+                {hasExistingGoal && existingGoalType === 'operatingProfit'
+                  ? initialValue
+                  : 'そのために営業利益はいくら必要ですか？'}
+              </p>
+              <p
+                style={{
+                  fontFamily: 'Inter',
+                  fontWeight: 400,
+                  fontSize: '12px',
+                  color: '#9CA3AF',
+                  ...(hasExistingGoal && existingGoalType === 'operatingProfit' && {
+                    background: 'rgba(19, 174, 103, 0.1)',
+                    padding: '4px 8px',
+                    borderRadius: '20px',
+                    display: 'inline-block'
+                  })
+                }}
+              >
+                {hasExistingGoal && existingGoalType === 'operatingProfit'
+                  ? '設定済み'
+                  : '年次PLと連動します'}
+              </p>
+            </div>
+          </button>
+        </div>
+          ) : selectedType === 'qualitative' ? (
+            // ステップ2-A: 定性的目標の入力
+            <div className="space-y-4">
               <div>
                 <label
                   style={{
@@ -327,19 +367,6 @@ const GoalInputModal: React.FC<GoalInputModalProps> = ({
           ) : (
             // ステップ2-B: PL連動目標の入力
             <div className="space-y-4">
-              <button
-                onClick={handleBack}
-                style={{
-                  fontFamily: 'Inter',
-                  fontWeight: 400,
-                  fontSize: '12px',
-                  color: '#13AE67',
-                  marginBottom: '12px'
-                }}
-              >
-                ← 目標タイプを変更
-              </button>
-
               <div className="bg-green-50 p-4 rounded-xl">
                 <p
                   style={{
@@ -483,7 +510,7 @@ const GoalInputModal: React.FC<GoalInputModalProps> = ({
                 cursor: isSubmitDisabled() ? 'not-allowed' : 'pointer'
               }}
             >
-              設定する
+              保存する
             </button>
           </div>
         )}

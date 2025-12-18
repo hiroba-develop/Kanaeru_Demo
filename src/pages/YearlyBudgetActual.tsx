@@ -550,11 +550,11 @@ const YearlyBudgetActual: React.FC = () => {
   ) => {
     const key = `${data.year}-${field}`;
     const displayValue = data[field as EditableField] as number;
-
+  
     const hasEditForCell =
       !!pendingEdits[data.year] &&
       (pendingEdits[data.year] as any)[field] !== undefined;
-
+  
     return (
       <td
         key={data.year}
@@ -562,42 +562,53 @@ const YearlyBudgetActual: React.FC = () => {
           isEditable
             ? "cursor-pointer hover:bg-primary/5 transition-colors"
             : ""
-        } ${isEditable && hasEditForCell ? "bg-warning/10" : ""}`}
+        } ${isEditable && hasEditForCell ? "bg-primary/5" : ""}`}
+        style={{ minWidth: '80px', maxWidth: '80px' }}
         onDoubleClick={() =>
           isEditable && handleCellDoubleClick(data.year, field as EditableField)
         }
         title={isEditable ? "ダブルクリックで編集" : ""}
       >
         {isEditable && editingCell === key ? (
-          <input
-            type="number"
-            defaultValue={displayValue}
-            onBlur={(e) =>
+        <input
+          type="number"
+          defaultValue={displayValue}
+          onBlur={(e) =>
+            handleCellUpdate(
+              data.year,
+              field as EditableField,
+              Number(e.target.value)
+            )
+          }
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
               handleCellUpdate(
                 data.year,
                 field as EditableField,
-                Number(e.target.value)
-              )
+                Number(e.currentTarget.value)
+              );
+            } else if (e.key === "Escape") {
+              setEditingCell(null);
             }
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                handleCellUpdate(
-                  data.year,
-                  field as EditableField,
-                  Number(e.currentTarget.value)
-                );
-              } else if (e.key === "Escape") {
-                setEditingCell(null);
-              }
-            }}
-            className="w-full text-right border border-primary rounded px-1 focus:outline-none focus:ring-1 focus:ring-primary"
-            autoFocus
-          />
-        ) : displayValue > 0 ? (
-          displayValue.toLocaleString()
-        ) : (
-          "-"
-        )}
+          }}
+          className="w-full text-right border border-primary rounded focus:outline-none focus:ring-1 focus:ring-primary"
+          style={{
+            background: 'transparent',
+            fontSize: 'inherit',
+            fontFamily: 'inherit',
+            lineHeight: 'inherit',
+            boxSizing: 'border-box',
+            padding: '0 4px',
+            margin: '0',
+            height: 'auto'
+          }}
+          autoFocus
+        />
+      ) : displayValue > 0 ? (
+        displayValue.toLocaleString()
+      ) : (
+        "-"
+      )}
       </td>
     );
   };
@@ -882,6 +893,9 @@ const YearlyBudgetActual: React.FC = () => {
                 onClick={handleSave}
                 disabled={isSaving}
                 className="btn-primary flex items-center space-x-2 text-sm px-4 py-2"
+                style={{
+                  borderRadius: '20px'
+                }}
               >
                 <Save className="h-4 w-4" />
                 <span>{isSaving ? "保存中..." : "変更を保存"}</span>

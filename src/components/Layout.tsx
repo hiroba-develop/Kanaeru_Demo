@@ -10,7 +10,6 @@ import {
 } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 import headerIcon from "../assets/header_icon.png";
-import { onMandalaGoalUpdate } from "../utils/mandalaIntegration";
 import mandalaIcon from "../assets/mandala_icon.png";
 import settingsIcon from "../assets/settings_icon.png";
 
@@ -26,7 +25,6 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const avatarInputRef = useRef<HTMLInputElement | null>(null);
 
   const location = useLocation();
-  const isMandalaPage = location.pathname === "/mandalaChart";
   const { logout, user, managedUsers, selectedUser, switchUser } = useAuth();
 
   const MandalaIcon: React.FC<{ className?: string }> = ({
@@ -435,22 +433,6 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               </div>
 
               <div className="flex items-center lg:mr-8">
-                {isMandalaPage && (
-                  <button
-                    onClick={() => {
-                      onMandalaGoalUpdate();
-                      alert("目標を更新しました。");
-                    }}
-                    className="text-xs sm:text-sm font-medium bg-white text-primary border border-primary transition-colors hover:bg-primary/5 px-3 py-1.5 sm:px-4 sm:py-2 rounded-full whitespace-nowrap"
-                    style={{
-                      background: '#F6FAFC',
-                      marginRight: '72px'
-                    }}
-                  >
-                    目標を更新する
-                  </button>
-                )}
-                
                 <button
                   onClick={() => {
                     if (window.confirm("ログアウトしますか？")) {
