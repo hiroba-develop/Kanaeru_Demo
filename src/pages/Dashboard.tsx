@@ -32,16 +32,13 @@ const getMandalaGrid = () => {
   };
 };
 
-// 8文字ごとに改行コードを入れる
 const formatTitleBy8Chars = (text: string): string => {
   if (!text) return "";
   
-  // すでに改行が含まれている場合はそのまま返す
   if (text.includes('\n')) {
     return text;
   }
   
-  // 改行がない場合のみ8文字ごとに改行を追加
   const chunks: string[] = [];
   for (let i = 0; i < text.length; i += 8) {
     chunks.push(text.slice(i, i + 8));
@@ -53,6 +50,7 @@ const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const {} = useAuth();
   const [currentDate] = useState(new Date());
+  const [isVisible, setIsVisible] = useState(false);
   const [currentYearData, setCurrentYearData] = useState({
     year: 1,
     revenueTarget: 0,
@@ -66,16 +64,21 @@ const Dashboard: React.FC = () => {
   const mandalaGrid = getMandalaGrid();
 
   const formatCurrency = (amount: number): string => {
-    const manyen = Math.round(amount / 10000); // 万円単位に変換
-    return manyen.toLocaleString('ja-JP'); // カンマ区切りで表示
+    const manyen = Math.round(amount / 10000);
+    return manyen.toLocaleString('ja-JP');
   };
 
-  // PL データを読み込んで表示用データを設定
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsVisible(true);
+    }, 100);
+    return () => clearTimeout(timer);
+  }, []);
+
   useEffect(() => {
     const plan = loadPlPlan();
     const actual = loadPlActual();
 
-    // 当年を「1年目」として表示
     const targetYear = 1;
 
     const yearPlan = plan?.yearly.find((y) => y.year === targetYear);
@@ -119,39 +122,88 @@ const Dashboard: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="max-w-7xl mx-auto p-4 space-y-6">
-        <div className="bg-background rounded-card-lg p-6" style={{ boxShadow: '0 2px 12px rgba(0, 0, 0, 0.08)' }}>
-          <h2 className="text-heading font-bold text-text text-center mb-6">
+      <div 
+        className="max-w-7xl mx-auto space-y-4 sm:space-y-6"
+        style={{
+          padding: 'clamp(12px, 3vw, 24px)'
+        }}
+      >
+        {/* タイトル部分 */}
+        <div 
+          className={`bg-background rounded-card-lg transition-all duration-700 ${
+            isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'
+          }`}
+          style={{ 
+            boxShadow: '0 2px 12px rgba(0, 0, 0, 0.08)',
+            padding: 'clamp(16px, 4vw, 24px)'
+          }}
+        >
+          <h2 
+            className="font-bold text-text text-center"
+            style={{
+              fontSize: 'clamp(18px, 4vw, 24px)',
+              marginBottom: 'clamp(16px, 3vw, 24px)'
+            }}
+          >
             今日、どっちチェックする?
           </h2>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 bg-">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
             {/* マンダラチャート セクション */}
             <div
-              className="bg-background cursor-pointer hover:shadow-card-hover transition-all group p-6 rounded-card-lg"
-              style={{ boxShadow: '0 2px 12px rgba(0, 0, 0, 0.08)' }}
+              className={`bg-background cursor-pointer hover:shadow-card-hover transition-all duration-700 group rounded-card-lg ${
+                isVisible ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-8'
+              }`}
+              style={{ 
+                boxShadow: '0 2px 12px rgba(0, 0, 0, 0.08)',
+                transitionDelay: '500ms',
+                padding: 'clamp(16px, 4vw, 24px)'
+              }}
               onClick={() => navigate("/mandalaChart")}
             >
-              <h2 className="text-heading font-bold text-text mb-6">
+              <h2 
+                className="font-bold text-text"
+                style={{
+                  fontSize: 'clamp(16px, 3.5vw, 20px)',
+                  marginBottom: 'clamp(12px, 3vw, 24px)'
+                }}
+              >
                 Check it !
               </h2>
 
               {/* 3x3 マンダラグリッド */}
-              <div className="grid grid-cols-3 gap-2 max-w-md mx-auto mb-6">
+              <div 
+                className="grid grid-cols-3 mx-auto"
+                style={{
+                  gap: 'clamp(4px, 1vw, 8px)',
+                  maxWidth: 'min(400px, 100%)',
+                  marginBottom: 'clamp(12px, 3vw, 24px)'
+                }}
+              >
                 {[0, 1, 2, 3, 4, 5, 6, 7, 8].map((index) => {
                   if (index === 4) {
                     return (
                       <div
                         key="center"
-                        className="aspect-square flex items-center justify-center p-2"
+                        className={`aspect-square flex items-center justify-center transition-all duration-500 ${
+                          isVisible ? 'opacity-100 scale-100' : 'opacity-0 scale-90'
+                        }`}
                         style={{
-                          borderRadius: '20px',
+                          borderRadius: 'clamp(12px, 3vw, 20px)',
                           boxShadow: '0px 4px 12px 0px rgba(72, 82, 84, 0.1)',
                           border: 'none',
-                          background: '#F067A6'
+                          background: '#F067A6',
+                          transitionDelay: `${300 + index * 50}ms`,
+                          padding: 'clamp(4px, 1vw, 8px)'
                         }}
                       >
-                        <p className="text-white text-center text-note font-semibold line-clamp-3 whitespace-pre-line">
+                        <p 
+                          className="text-white text-center font-semibold line-clamp-3 whitespace-pre-line"
+                          style={{
+                            fontSize: 'clamp(8px, 1.8vw, 12px)',
+                            lineHeight: 'clamp(12px, 2.5vw, 16px)'
+                          }}
+                        >
                           {formatTitleBy8Chars(
                             mandalaGrid.centerGoal || "目標"
                           )}
@@ -170,36 +222,43 @@ const Dashboard: React.FC = () => {
                   return (
                     <div
                       key={index}
-                      className="relative aspect-square p-2 overflow-hidden flex items-center justify-center transition-all"
+                      className={`relative aspect-square overflow-hidden flex items-center justify-center transition-all duration-500 ${
+                        isVisible ? 'opacity-100 scale-100' : 'opacity-0 scale-90'
+                      }`}
                       style={{
-                        borderRadius: '20px',
+                        borderRadius: 'clamp(12px, 3vw, 20px)',
                         boxShadow: '0px 4px 12px 0px rgba(72, 82, 84, 0.1)',
                         border: 'none',
-                        background: '#FFFFFF'
+                        background: '#FFFFFF',
+                        transitionDelay: `${300 + index * 50}ms`,
+                        padding: 'clamp(4px, 1vw, 8px)'
                       }}
                     >
                       {isCompleted && (
                         <img
                           src={complate_icon}
                           alt="達成リング"
-                          className="
-                          absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2
-                          opacity-80 pointer-events-none
-                          w-2/3 h-2/3 max-w-[80px] max-h-[80px]
-                          md:max-w-[100px] md:max-h-[100px]
-                        "
+                          className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 opacity-80 pointer-events-none"
+                          style={{
+                            width: 'clamp(40px, 60%, 80px)',
+                            height: 'clamp(40px, 60%, 80px)',
+                            objectFit: 'contain'
+                          }}
                         />
                       )}
 
                       <p
-                        className={`relative z-10 text-center text-note font-medium line-clamp-3 whitespace-pre-line
-                        ${
+                        className={`relative z-10 text-center font-medium line-clamp-3 whitespace-pre-line ${
                           isCompleted
                             ? "text-achieved"
                             : hasContent
                             ? "text-primary"
                             : "text-text/50"
                         }`}
+                        style={{
+                          fontSize: 'clamp(8px, 1.8vw, 12px)',
+                          lineHeight: 'clamp(12px, 2.5vw, 16px)'
+                        }}
                       >
                         {hasContent ? formatTitleBy8Chars(cell!.title) : ""}
                       </p>
@@ -211,44 +270,116 @@ const Dashboard: React.FC = () => {
 
             {/* 予実管理（年次PL） セクション */}
             <div
-              className="bg-gradient-to-br bg-background to-primary/5 cursor-pointer hover:shadow-card-hover transition-all group p-6 rounded-card-lg"
-              style={{ boxShadow: '0 2px 12px rgba(0, 0, 0, 0.08)' }}
+              className={`bg-gradient-to-br bg-background to-primary/5 cursor-pointer hover:shadow-card-hover transition-all duration-700 group rounded-card-lg ${
+                isVisible ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-8'
+              }`}
+              style={{ 
+                boxShadow: '0 2px 12px rgba(0, 0, 0, 0.08)',
+                transitionDelay: '1000ms',
+                padding: 'clamp(16px, 4vw, 24px)'
+              }}
               onClick={() => navigate("/yearlyBudgetActual")}
             >
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex items-center space-x-3">
-                <div className="bg-primary text-white p-3 rounded-full">
-                  <BarChart3 className="w-6 h-6" />
-                </div>
+              <div 
+                className="flex items-start justify-between"
+                style={{
+                  marginBottom: 'clamp(12px, 3vw, 16px)'
+                }}
+              >
+                <div className="flex items-center space-x-2 sm:space-x-3">
+                  <div 
+                    className="bg-primary text-white rounded-full flex items-center justify-center"
+                    style={{
+                      padding: 'clamp(8px, 2vw, 12px)'
+                    }}
+                  >
+                    <BarChart3 
+                      style={{
+                        width: 'clamp(18px, 4vw, 24px)',
+                        height: 'clamp(18px, 4vw, 24px)'
+                      }}
+                    />
+                  </div>
                   <div>
-                    <h2 className="text-heading font-bold text-text">年次PL</h2>
+                    <h2 
+                      className="font-bold text-text"
+                      style={{
+                        fontSize: 'clamp(16px, 3.5vw, 20px)'
+                      }}
+                    >
+                      年次PL
+                    </h2>
                   </div>
                 </div>
               </div>
 
               {/* 年間の予実 */}
-              <div className="bg-background rounded-card-lg p-4 mb-4" style={{ boxShadow: '0 1px 6px rgba(0, 0, 0, 0.06)' }}>
-                <div className="text-note text-text/70 mb-3">
+              <div 
+                className="bg-background rounded-card-lg"
+                style={{ 
+                  boxShadow: '0 1px 6px rgba(0, 0, 0, 0.06)',
+                  padding: 'clamp(12px, 3vw, 16px)',
+                  marginBottom: 'clamp(12px, 3vw, 16px)'
+                }}
+              >
+                <div 
+                  className="text-text/70"
+                  style={{
+                    fontSize: 'clamp(10px, 2.5vw, 12px)',
+                    marginBottom: 'clamp(8px, 2vw, 12px)'
+                  }}
+                >
                   {currentYearData.year}年の実績
                 </div>
 
                 {/* 売上 */}
-                <div className="mb-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-body font-semibold text-text">
+                <div style={{ marginBottom: 'clamp(12px, 3vw, 16px)' }}>
+                  <div 
+                    className="flex items-center justify-between"
+                    style={{
+                      marginBottom: 'clamp(6px, 1.5vw, 8px)'
+                    }}
+                  >
+                    <span 
+                      className="font-semibold text-text"
+                      style={{
+                        fontSize: 'clamp(12px, 2.8vw, 14px)'
+                      }}
+                    >
                       売上(年間)
                     </span>
-                    <span className="text-body font-bold text-primary">
+                    <span 
+                      className="font-bold text-primary"
+                      style={{
+                        fontSize: 'clamp(12px, 2.8vw, 14px)'
+                      }}
+                    >
                       {revenueRate}%
                     </span>
                   </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                  <div 
+                    className="w-full bg-gray-200 rounded-full overflow-hidden"
+                    style={{
+                      height: 'clamp(6px, 1.5vw, 8px)'
+                    }}
+                  >
                     <div
-                      className="bg-gradient-to-r from-primary to-primary/80 h-full transition-all duration-500 rounded-full"
-                      style={{ width: `${Math.min(revenueRate, 100)}%` }}
+                      className={`bg-gradient-to-r from-primary to-primary/80 h-full rounded-full transition-all duration-1000 ${
+                        isVisible ? 'w-full' : 'w-0'
+                      }`}
+                      style={{ 
+                        width: isVisible ? `${Math.min(revenueRate, 100)}%` : '0%',
+                        transitionDelay: '500ms'
+                      }}
                     />
                   </div>
-                  <div className="flex justify-between mt-1 text-note text-text/70">
+                  <div 
+                    className="flex justify-between text-text/70"
+                    style={{
+                      marginTop: 'clamp(4px, 1vw, 4px)',
+                      fontSize: 'clamp(9px, 2vw, 10px)'
+                    }}
+                  >
                     <span>
                       実績: {formatCurrency(currentYearData.revenueActual)}万円
                     </span>
@@ -259,22 +390,53 @@ const Dashboard: React.FC = () => {
                 </div>
 
                 {/* 粗利益 */}
-                <div className="mb-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-body font-semibold text-text">
+                <div style={{ marginBottom: 'clamp(12px, 3vw, 16px)' }}>
+                  <div 
+                    className="flex items-center justify-between"
+                    style={{
+                      marginBottom: 'clamp(6px, 1.5vw, 8px)'
+                    }}
+                  >
+                    <span 
+                      className="font-semibold text-text"
+                      style={{
+                        fontSize: 'clamp(12px, 2.8vw, 14px)'
+                      }}
+                    >
                       粗利益(年間)
                     </span>
-                    <span className="text-body font-bold text-primary">
+                    <span 
+                      className="font-bold text-primary"
+                      style={{
+                        fontSize: 'clamp(12px, 2.8vw, 14px)'
+                      }}
+                    >
                       {grossProfitRate}%
                     </span>
                   </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                  <div 
+                    className="w-full bg-gray-200 rounded-full overflow-hidden"
+                    style={{
+                      height: 'clamp(6px, 1.5vw, 8px)'
+                    }}
+                  >
                     <div
-                      className="bg-gradient-to-r from-primary to-primary/80 h-full transition-all duration-500 rounded-full"
-                      style={{ width: `${Math.min(grossProfitRate, 100)}%` }}
+                      className={`bg-gradient-to-r from-primary to-primary/80 h-full rounded-full transition-all duration-1000 ${
+                        isVisible ? 'w-full' : 'w-0'
+                      }`}
+                      style={{ 
+                        width: isVisible ? `${Math.min(grossProfitRate, 100)}%` : '0%',
+                        transitionDelay: '700ms'
+                      }}
                     />
                   </div>
-                  <div className="flex justify-between mt-1 text-note text-text/70">
+                  <div 
+                    className="flex justify-between text-text/70"
+                    style={{
+                      marginTop: 'clamp(4px, 1vw, 4px)',
+                      fontSize: 'clamp(9px, 2vw, 10px)'
+                    }}
+                  >
                     <span>
                       実績: {formatCurrency(currentYearData.grossProfitActual)}万円
                     </span>
@@ -286,23 +448,52 @@ const Dashboard: React.FC = () => {
 
                 {/* 営業利益 */}
                 <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-body font-semibold text-text">
+                  <div 
+                    className="flex items-center justify-between"
+                    style={{
+                      marginBottom: 'clamp(6px, 1.5vw, 8px)'
+                    }}
+                  >
+                    <span 
+                      className="font-semibold text-text"
+                      style={{
+                        fontSize: 'clamp(12px, 2.8vw, 14px)'
+                      }}
+                    >
                       営業利益(年間)
                     </span>
-                    <span className="text-body font-bold text-primary">
+                    <span 
+                      className="font-bold text-primary"
+                      style={{
+                        fontSize: 'clamp(12px, 2.8vw, 14px)'
+                      }}
+                    >
                       {operatingProfitRate}%
                     </span>
                   </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                  <div 
+                    className="w-full bg-gray-200 rounded-full overflow-hidden"
+                    style={{
+                      height: 'clamp(6px, 1.5vw, 8px)'
+                    }}
+                  >
                     <div
-                      className="bg-gradient-to-r from-primary to-primary/80 h-full transition-all duration-500 rounded-full"
+                      className={`bg-gradient-to-r from-primary to-primary/80 h-full rounded-full transition-all duration-1000 ${
+                        isVisible ? 'w-full' : 'w-0'
+                      }`}
                       style={{
-                        width: `${Math.min(operatingProfitRate, 100)}%`,
+                        width: isVisible ? `${Math.min(operatingProfitRate, 100)}%` : '0%',
+                        transitionDelay: '900ms'
                       }}
                     />
                   </div>
-                  <div className="flex justify-between mt-1 text-note text-text/70">
+                  <div 
+                    className="flex justify-between text-text/70"
+                    style={{
+                      marginTop: 'clamp(4px, 1vw, 4px)',
+                      fontSize: 'clamp(9px, 2vw, 10px)'
+                    }}
+                  >
                     <span>
                       実績: {formatCurrency(currentYearData.operatingProfitActual)}万円
                     </span>
@@ -317,20 +508,53 @@ const Dashboard: React.FC = () => {
         </div>
 
         {/* In the works セクション */}        
-        <div className="p-6 rounded-card-lg" style={{ boxShadow: '0 2px 12px rgba(0, 0, 0, 0.08)' }}>
-          <h2 className="text-heading font-bold text-text mb-4">
+        <div 
+          className={`rounded-card-lg transition-all duration-700 ${
+            isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
+          }`}
+          style={{ 
+            boxShadow: '0 2px 12px rgba(0, 0, 0, 0.08)',
+            transitionDelay: '1500ms',
+            padding: 'clamp(16px, 4vw, 24px)'
+          }}
+        >
+          <h2 
+            className="font-bold text-text"
+            style={{
+              fontSize: 'clamp(16px, 3.5vw, 20px)',
+              marginBottom: 'clamp(12px, 3vw, 16px)'
+            }}
+          >
             In the works...
           </h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="h-40 flex items-center justify-center bg-background rounded-card-lg" style={{ boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)' }}>
-              <p className="text-body text-text/40">Coming Soon</p>
-            </div>
-            <div className="h-40 flex items-center justify-center bg-background rounded-card-lg" style={{ boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)' }}>
-              <p className="text-body text-text/40">Coming Soon</p>
-            </div>
-            <div className="h-40 flex items-center justify-center bg-background rounded-card-lg" style={{ boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)' }}>
-              <p className="text-body text-text/40">Coming Soon</p>
-            </div>
+          <div 
+            className="grid grid-cols-1 md:grid-cols-3"
+            style={{
+              gap: 'clamp(12px, 3vw, 16px)'
+            }}
+          >
+            {[0, 1, 2].map((index) => (
+              <div 
+                key={index}
+                className={`flex items-center justify-center bg-background rounded-card-lg transition-all duration-500 ${
+                  isVisible ? 'opacity-100 scale-100' : 'opacity-0 scale-95'
+                }`}
+                style={{ 
+                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)',
+                  transitionDelay: `${400 + index * 100}ms`,
+                  height: 'clamp(120px, 25vw, 160px)'
+                }}
+              >
+                <p 
+                  className="text-text/40"
+                  style={{
+                    fontSize: 'clamp(12px, 2.8vw, 14px)'
+                  }}
+                >
+                  Coming Soon
+                </p>
+              </div>
+            ))}
           </div>
         </div>
       </div>

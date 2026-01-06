@@ -66,6 +66,24 @@ const YearlyBudgetActual: React.FC = () => {
   const [pendingEdits, setPendingEdits] = useState<PendingEdits>({});
   const [chartType, setChartType] = useState<"revenue" | "grossProfit" | "operatingProfit">("revenue");
 
+  // 追加: 画面幅を管理するstate
+  const [isMobile, setIsMobile] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return window.innerWidth < 640;
+    }
+    return false;
+  });
+
+  // 追加: 画面リサイズを検知
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 640);
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   // グラフのY軸最大値を動的に計算
   const yAxisDomain = React.useMemo((): [number, number] => {
     if (targets.length === 0) {
@@ -555,20 +573,19 @@ const YearlyBudgetActual: React.FC = () => {
       !!pendingEdits[data.year] &&
       (pendingEdits[data.year] as any)[field] !== undefined;
   
-    return (
-      <td
-        key={data.year}
-        className={`py-2 sm:py-3 px-1 sm:px-2 text-right ${
-          isEditable
-            ? "cursor-pointer hover:bg-primary/5 transition-colors"
-            : ""
-        } ${isEditable && hasEditForCell ? "bg-primary/5" : ""}`}
-        style={{ minWidth: '80px', maxWidth: '80px' }}
-        onDoubleClick={() =>
-          isEditable && handleCellDoubleClick(data.year, field as EditableField)
-        }
-        title={isEditable ? "ダブルクリックで編集" : ""}
-      >
+      return (
+        <td
+          key={data.year}
+          className={`py-2 sm:py-3 px-1 sm:px-2 text-right text-xs sm:text-sm whitespace-nowrap ${
+            isEditable
+              ? "cursor-pointer hover:bg-primary/5 transition-colors"
+              : ""
+          } ${isEditable && hasEditForCell ? "bg-primary/5" : ""}`}
+          onClick={() =>
+            isEditable && handleCellDoubleClick(data.year, field as EditableField)
+          }
+          title={isEditable ? "クリックで編集" : ""}
+        >
         {isEditable && editingCell === key ? (
         <input
           type="number"
@@ -591,18 +608,17 @@ const YearlyBudgetActual: React.FC = () => {
               setEditingCell(null);
             }
           }}
-          className="w-full text-right border border-primary rounded focus:outline-none focus:ring-1 focus:ring-primary"
+          className="w-full text-right border border-primary rounded focus:outline-none focus:ring-2 focus:ring-primary text-xs sm:text-sm"
           style={{
-            background: 'transparent',
-            fontSize: 'inherit',
-            fontFamily: 'inherit',
-            lineHeight: 'inherit',
+            background: '#fff',
             boxSizing: 'border-box',
-            padding: '0 4px',
+            padding: 'clamp(2px, 0.5vw, 4px)',
             margin: '0',
-            height: 'auto'
+            height: 'auto',
+            minHeight: '24px'
           }}
           autoFocus
+          onFocus={(e) => e.target.select()}
         />
       ) : displayValue > 0 ? (
         displayValue.toLocaleString()
@@ -624,7 +640,7 @@ const YearlyBudgetActual: React.FC = () => {
     return (
       <td
         key={data.year}
-        className={`py-2 sm:py-3 px-1 sm:px-2 text-right font-medium ${
+        className={`py-2 sm:py-3 px-1 sm:px-2 text-right font-medium text-xs sm:text-sm ${
           rate >= 100
             ? "text-success"
             : rate >= 90
@@ -656,7 +672,7 @@ const YearlyBudgetActual: React.FC = () => {
   ];
 
   return (
-    <div className="space-y-6 px-4 sm:px-6 lg:px-8 py-6">
+    <div className="space-y-6 px-4 sm:px-6 lg:px-8 py-6" style={{ maxWidth: '100vw', overflow: 'hidden' }}>
       {/* タイトル */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center space-x-3">
@@ -667,9 +683,9 @@ const YearlyBudgetActual: React.FC = () => {
         </div>
       </div>
 
-      <div className="flex justify-center">
+      <div className="w-full" style={{ maxWidth: '100%' }}>
         {/* 推移予測グラフ */}
-        <div className="card w-full max-w-6xl" style={{ boxShadow: '0 2px 12px rgba(0, 0, 0, 0.08)' }}>
+        <div className="card w-full" style={{ boxShadow: '0 2px 12px rgba(0, 0, 0, 0.08)', overflow: 'hidden' }}> 
           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-4">
             <h3 className="text-body font-semibold text-text">
               {chartType === "revenue" ? "売上推移予測" : 
@@ -679,7 +695,7 @@ const YearlyBudgetActual: React.FC = () => {
             <select
               value={chartType}
               onChange={(e) => setChartType(e.target.value as "revenue" | "grossProfit" | "operatingProfit")}
-              className="text-body border border-border rounded px-3 py-2 pr-8 appearance-none bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+              className="text-xs sm:text-sm border border-border rounded px-2 sm:px-3 py-1.5 sm:py-2 pr-8 appearance-none bg-background focus:outline-none focus:ring-2 focus:ring-primary w-32 sm:w-36"
               style={{
                 backgroundImage: 'url(\'data:image/svg+xml;utf8,<svg fill="black" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/><path d="M0 0h24v24H0z" fill="none"/></svg>\')',
                 backgroundRepeat: "no-repeat",
@@ -707,35 +723,79 @@ const YearlyBudgetActual: React.FC = () => {
             return null;
           })()}
             
-            <ResponsiveContainer width="100%" height={400}>          
-              <LineChart data={targets} margin={{ top: 30, right: 30, left: 20, bottom: 5 }}>
+            <ResponsiveContainer width="100%" height={isMobile ? 300 : 400}>          
+              <LineChart 
+                data={targets} 
+                margin={{ 
+                  top: isMobile ? 20 : 30, 
+                  right: isMobile ? 10 : 30, 
+                  left: isMobile ? 0 : 20, 
+                  bottom: isMobile ? 5 : 5 
+                }}
+              >
                 <CartesianGrid stroke="#E5E7EB" />
                 
                 <XAxis
                   dataKey="year"
                   stroke="#E5E7EB"
-                  tick={{ fill: "#1E1F1F", fontSize: 14, fontFamily: "system-ui, -apple-system, sans-serif" }}
+                  tick={{ 
+                    fill: "#1E1F1F", 
+                    fontSize: isMobile ? 10 : 14, 
+                    fontFamily: "system-ui, -apple-system, sans-serif" 
+                  }}
                   tickFormatter={(value) => {
                     const fiscalYear = 2025 + value - 1;
-                    return `FY${fiscalYear}`;
+                    return isMobile ? `'${fiscalYear.toString().slice(-2)}` : `FY${fiscalYear}`;
                   }}
                   dy={10}
                 />
                 <YAxis
                   stroke="#E5E7EB"
-                  tick={{ fill: "#1E1F1F", fontSize: 14, fontFamily: "system-ui, -apple-system, sans-serif" }}
+                  tick={{ 
+                    fill: "#1E1F1F", 
+                    fontSize: isMobile ? 10 : 14, 
+                    fontFamily: "system-ui, -apple-system, sans-serif" 
+                  }}
                   domain={yAxisDomain}
-                  tickFormatter={(value) => `${(value / 10000).toFixed(0)}万`}
-                  width={80}
+                  tickFormatter={(value) => {
+                    if (isMobile) {
+                      // モバイル: 100万円単位で表示
+                      if (value >= 10000000) {
+                        return `${(value / 10000000).toFixed(0).toLocaleString()}千万円`;
+                      }
+                      return `${(value / 10000).toFixed(0).toLocaleString()}万円`;
+                    }
+                    // PC: カンマ区切り + 円を追加
+                    return `${(value / 10000).toLocaleString()}万円`;
+                  }}
+                  width={isMobile ? 50 : 90}  // 「円」が入る分、幅を少し広げる
                 />
                 <Tooltip
-                  formatter={(value: number) => `${(value / 10000).toLocaleString()}万円`}
+                  formatter={(value: number, name: string, props: any) => {
+                    // マンダラ目標の期限情報を取得
+                    const currentYear = props.payload.year;
+                    const goalInfo = mandalaGoals.find(
+                      goal => goal.metric === chartType && goal.year === currentYear
+                    );
+                    
+                    return [
+                      `${(value / 10000).toLocaleString()}万円`,
+                      name + (goalInfo ? ` (${goalInfo.year}年目期限)` : '')
+                    ];
+                  }}
                   labelFormatter={(label) => {
                     const fiscalYear = 2025 + label - 1;
                     return `FY${fiscalYear}`;
                   }}
-                  labelStyle={{ color: "#1E1F1F", fontSize: 14, fontFamily: "system-ui, -apple-system, sans-serif" }}
-                  contentStyle={{ fontSize: 14, fontFamily: "system-ui, -apple-system, sans-serif" }}
+                  labelStyle={{ 
+                    color: "#1E1F1F", 
+                    fontSize: isMobile ? 11 : 14, 
+                    fontFamily: "system-ui, -apple-system, sans-serif" 
+                  }}
+                  contentStyle={{ 
+                    fontSize: isMobile ? 11 : 14, 
+                    fontFamily: "system-ui, -apple-system, sans-serif" 
+                  }}
                 />
                 
                 {/* 売上 */}
@@ -745,6 +805,7 @@ const YearlyBudgetActual: React.FC = () => {
                   stroke="#9CA3AF"
                   strokeWidth={3}
                   strokeDasharray="5 5"
+                  dot={{ fill: "white", stroke: "#9CA3AF", strokeWidth: 2, r: 3, strokeDasharray: "0" }}  // ← r: 5 に変更
                   name="売上目標"
                   hide={chartType !== "revenue"}
                 />
@@ -764,6 +825,7 @@ const YearlyBudgetActual: React.FC = () => {
                   stroke="#9CA3AF"
                   strokeWidth={3}
                   strokeDasharray="5 5"
+                  dot={{ fill: "white", stroke: "#9CA3AF", strokeWidth: 2, r: 3, strokeDasharray: "0" }}  // ← r: 5 に変更
                   name="粗利益目標"
                   hide={chartType !== "grossProfit"}
                 />
@@ -783,6 +845,7 @@ const YearlyBudgetActual: React.FC = () => {
                   stroke="#9CA3AF"
                   strokeWidth={3}
                   strokeDasharray="5 5"
+                  dot={{ fill: "white", stroke: "#9CA3AF", strokeWidth: 2, r: 3, strokeDasharray: "0" }}  // ← r: 5 に変更
                   name="営業利益目標"
                   hide={chartType !== "operatingProfit"}
                 />
@@ -799,71 +862,77 @@ const YearlyBudgetActual: React.FC = () => {
               {mandalaGoals.filter(goal => goal.metric === chartType)[0] && (
                 <ReferenceLine 
                   x={mandalaGoals.filter(goal => goal.metric === chartType)[0].year} 
-                  stroke="#0000FF" 
+                  stroke="#0051BB" 
                   strokeWidth={3}
                   strokeDasharray="5 5"
                 >
-                  <Label 
-                    value={`${mandalaGoals.filter(goal => goal.metric === chartType)[0].year}年目期限`}
-                    position={mandalaGoals.filter(goal => goal.metric === chartType)[0].year === 1 ? "insideTopLeft" : "top"}
-                    fill="#0000FF"
-                    fontSize={12}
-                    offset={mandalaGoals.filter(goal => goal.metric === chartType)[0].year === 1 ? 5 : 10}
-                  />
+                  {!isMobile && (
+                    <Label
+                      value={`${mandalaGoals.filter(goal => goal.metric === chartType)[0].year}年目期限`}
+                      position="top"
+                      fill="#0051BB"
+                      fontSize={12}
+                      offset={10}
+                    />
+                  )}
                 </ReferenceLine>
               )}
+
               {/* マンダラ目標の参照線 - 2つ目 */}
-                {mandalaGoals.filter(goal => goal.metric === chartType)[1] && (
-                  <ReferenceLine 
-                    x={mandalaGoals.filter(goal => goal.metric === chartType)[1].year} 
-                    stroke="#0000FF" 
-                    strokeWidth={3}
-                    strokeDasharray="5 5"
-                  >
-                    <Label 
+              {mandalaGoals.filter(goal => goal.metric === chartType)[1] && (
+                <ReferenceLine 
+                  x={mandalaGoals.filter(goal => goal.metric === chartType)[1].year} 
+                  stroke="#0051BB" 
+                  strokeWidth={3}
+                  strokeDasharray="5 5"
+                >
+                  {!isMobile && (
+                    <Label
                       value={`${mandalaGoals.filter(goal => goal.metric === chartType)[1].year}年目期限`}
                       position="top"
-                      fill="#0000FF"
+                      fill="#0051BB"
                       fontSize={12}
                       offset={10}
-                      dx={mandalaGoals.filter(goal => goal.metric === chartType)[1].year === 1 ? 20 : 0}
                     />
-                  </ReferenceLine>
-                )}
+                  )}
+                </ReferenceLine>
+              )}
 
-                {/* マンダラ目標の参照線 - 3つ目 */}
-                {mandalaGoals.filter(goal => goal.metric === chartType)[2] && (
-                  <ReferenceLine 
-                    x={mandalaGoals.filter(goal => goal.metric === chartType)[2].year} 
-                    stroke="#0000FF" 
-                    strokeWidth={3}
-                    strokeDasharray="5 5"
-                  >
-                    <Label 
+              {/* マンダラ目標の参照線 - 3つ目 */}
+              {mandalaGoals.filter(goal => goal.metric === chartType)[2] && (
+                <ReferenceLine 
+                  x={mandalaGoals.filter(goal => goal.metric === chartType)[2].year} 
+                  stroke="#0051BB" 
+                  strokeWidth={3}
+                  strokeDasharray="5 5"
+                >
+                  {!isMobile && (
+                    <Label
                       value={`${mandalaGoals.filter(goal => goal.metric === chartType)[2].year}年目期限`}
                       position="top"
-                      fill="#0000FF"
+                      fill="#0051BB"
                       fontSize={12}
                       offset={10}
-                      dx={mandalaGoals.filter(goal => goal.metric === chartType)[2].year === 1 ? 20 : 0}
                     />
-                  </ReferenceLine>
-                )}
+                  )}
+                </ReferenceLine>
+              )}
               </LineChart>
             </ResponsiveContainer>
         </div>
       </div>
 
       {/* 10年間の目標設定テーブル */}
-      <div className="flex justify-center">
-        <div className="card w-full max-w-6xl" style={{ boxShadow: '0 2px 12px rgba(0, 0, 0, 0.08)' }}>
+      <div className="w-full">
+        <div className="card w-full" style={{ boxShadow: '0 2px 12px rgba(0, 0, 0, 0.08)', maxWidth: '100%', overflow: 'hidden' }}>
           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-4">
-            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
               <h3 className="text-body font-semibold text-text">
                 10年間の目標設定
               </h3>
-              <div className="text-note text-text/70">
-                💡 各種目標はダブルクリックで編集できます
+              <div className="text-[10px] sm:text-xs text-text/70 leading-relaxed">
+                💡 空欄や数字部分は編集できます<br/>
+                💡 設定した数字は自動でグラフに反映されます
               </div>
             </div>
             <div className="grid grid-cols-1 gap-2">
@@ -902,13 +971,12 @@ const YearlyBudgetActual: React.FC = () => {
               </button>
             </div>
           )}
-
-          <div className="overflow-x-auto">
-            <table className="w-full text-body">
+          <div style={{ width: '100%', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+            <table className="text-body w-full" style={{ minWidth: '600px' }}>
               <thead>
                 <tr className="border-b border-border/50">
-                  <th className="text-left py-2 sm:py-3 px-1 sm:px-2 font-medium w-24"></th>
-                  <th className="text-left py-2 sm:py-3 px-1 sm:px-2 font-medium">
+                  <th className="text-left py-2 sm:py-3 px-1 sm:px-2 font-medium text-xs sm:text-sm w-16 sm:w-24"></th>
+                  <th className="text-left py-2 sm:py-3 px-1 sm:px-2 font-medium text-xs sm:text-sm">
                     項目
                   </th>
                   {getTableDisplayData().map((data) => {
@@ -916,7 +984,7 @@ const YearlyBudgetActual: React.FC = () => {
                     return (
                       <th
                         key={data.year}
-                        className="text-right py-2 sm:py-3 px-1 sm:px-2 whitespace-nowrap font-medium"
+                        className="text-right py-2 sm:py-3 px-1 sm:px-2 whitespace-nowrap font-medium text-xs sm:text-sm"
                       >
                         FY{fiscalYear}
                       </th>
@@ -930,11 +998,11 @@ const YearlyBudgetActual: React.FC = () => {
                     <tr className="border-b border-border/50">
                       <td
                         rowSpan={3}
-                        className="py-2 sm:py-3 px-1 sm:px-2 font-medium whitespace-nowrap text-left align-middle border-r border-border/50"
+                        className="py-2 sm:py-3 px-1 sm:px-2 font-medium whitespace-nowrap text-left align-middle border-r border-border/50 text-xs sm:text-sm"
                       >
                         {item.label}
                       </td>
-                      <td className="py-2 sm:py-3 px-1 sm:px-2 font-medium whitespace-nowrap text-left">
+                      <td className="py-2 sm:py-3 px-1 sm:px-2 font-medium whitespace-nowrap text-left text-xs sm:text-sm">
                         目標
                       </td>
                       {getTableDisplayData().map((data) =>
@@ -972,7 +1040,7 @@ const YearlyBudgetActual: React.FC = () => {
                   </React.Fragment>
                 ))}
               </tbody>
-            </table>
+            </table> 
           </div>
         </div>
       </div>

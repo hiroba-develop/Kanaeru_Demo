@@ -39,15 +39,35 @@ const MajorRingProgress: React.FC<MajorRingProgressProps> = ({
   size = 190,
   offsetY = 0,
 }) => {
-  const strokeWidth = 3;
-  const gap = 1.0;
-  const cx = size / 2;
-  const cy = size / 2;
+  const [ringSize, setRingSize] = useState(size);
+  
+  useEffect(() => {
+    const updateSize = () => {
+      if (window.innerWidth < 768) {
+        const padding = 32;
+        const gap = Math.max(4, Math.min(window.innerWidth * 0.02, 16));
+        const cellWidth = (window.innerWidth - padding - gap * 2) / 3;
+        const cellPadding = Math.max(8, Math.min(window.innerWidth * 0.02, 16));
+        setRingSize((cellWidth - cellPadding * 2) * 0.85);
+      } else {
+        setRingSize(size);
+      }
+    };
+    
+    updateSize();
+    window.addEventListener('resize', updateSize);
+    return () => window.removeEventListener('resize', updateSize);
+  }, [size]);
+
+  const strokeWidth = window.innerWidth < 768 ? 2 : 3;
+  const gap = window.innerWidth < 768 ? 0.5 : 1.0;
+  const cx = ringSize / 2;
+  const cy = ringSize / 2;
 
   const circles: React.ReactNode[] = [];
 
-  const minRadius = 55;
-  const maxRadius = size / 2 - strokeWidth / 2 - 5;
+  const minRadius = ringSize * 0.29;
+  const maxRadius = ringSize / 2 - strokeWidth / 2 - (window.innerWidth < 768 ? 3 : 5);
   const radiusDecrement = strokeWidth + gap;
 
   ringRatios.forEach((ratio, index) => {
@@ -79,8 +99,8 @@ const MajorRingProgress: React.FC<MajorRingProgressProps> = ({
 
   return (
     <svg
-      width={size}
-      height={size}
+      width={ringSize}
+      height={ringSize}
       className="absolute pointer-events-none z-10"
       style={{
         top: '50%',
@@ -99,12 +119,31 @@ const MultiRingProgress: React.FC<MultiRingProgressProps> = ({
   size = 120,
   offsetY = 0,
 }) => {
-  const strokeWidth = 3;
-  const cx = size / 2;
-  const cy = size / 2;
-  const radius = size / 2 - strokeWidth / 2 - 5;
+  const [ringSize, setRingSize] = useState(size);
+  
+  useEffect(() => {
+    const updateSize = () => {
+      if (window.innerWidth < 768) {
+        const padding = 32;
+        const gap = Math.max(4, Math.min(window.innerWidth * 0.02, 16));
+        const cellWidth = (window.innerWidth - padding - gap * 2) / 3;
+        const cellPadding = Math.max(8, Math.min(window.innerWidth * 0.02, 16));
+        setRingSize((cellWidth - cellPadding * 2) * 0.85);
+      } else {
+        setRingSize(size);
+      }
+    };
+    
+    updateSize();
+    window.addEventListener('resize', updateSize);
+    return () => window.removeEventListener('resize', updateSize);
+  }, [size]);
 
-  // 達成率を計算（0から1の範囲）
+  const strokeWidth = window.innerWidth < 768 ? 2 : 3;
+  const cx = ringSize / 2;
+  const cy = ringSize / 2;
+  const radius = ringSize / 2 - strokeWidth / 2 - (window.innerWidth < 768 ? 3 : 5);
+
   const ratio = totalRings > 0 ? filledRings / totalRings : 0;
   
   const circumference = 2 * Math.PI * radius;
@@ -113,8 +152,8 @@ const MultiRingProgress: React.FC<MultiRingProgressProps> = ({
 
   return (
     <svg
-      width={size}
-      height={size}
+      width={ringSize}
+      height={ringSize}
       className="absolute pointer-events-none"
       style={{
         top: '50%',
@@ -151,7 +190,7 @@ const MandalaCellFrame: React.FC<MandalaCellFrameProps> = ({
 }) => {
 
   const base =
-    "aspect-square p-4 flex flex-col transition-all relative";
+    "aspect-square flex flex-col transition-all relative";
 
   const hoverClass = isHoverable
     ? "hover:shadow-lg"
@@ -161,9 +200,10 @@ const MandalaCellFrame: React.FC<MandalaCellFrameProps> = ({
     <div 
       className={`${base} ${hoverClass}`}
       style={{
-        width: '200px',
-        height: '200px',
-        borderRadius: '20px',
+        width: '100%',
+        height: '100%',
+        padding: 'clamp(6px, 1.5vw, 16px)',
+        borderRadius: 'clamp(10px, 3vw, 20px)',
         boxShadow: '0px 4px 12px 0px rgba(72, 82, 84, 0.1)',
         border: 'none',
         background: '#FFFFFF'
@@ -187,11 +227,10 @@ const MandalaChart: React.FC = () => {
   const [selectedMajorCellId, setSelectedMajorCellId] = useState<string | null>(null);
   const [selectedMiddleCellId, setSelectedMiddleCellId] = useState<string | null>(null);
   const [hoveredCellId, setHoveredCellId] = useState<string | null>(null);
+  const [isVisible, setIsVisible] = useState(false); // アニメーション用
 
-  // 変更追跡用の状態
   const [savedMinorCharts, setSavedMinorCharts] = useState<{[key: string]: MandalaSubChart}>({});
 
-  // モーダル用のstate
   const [goalInputModal, setGoalInputModal] = useState<{
     isOpen: boolean;
     cellId: string;
@@ -286,17 +325,31 @@ const MandalaChart: React.FC = () => {
     level: "minor",
   });
 
-  // 保存状態を更新する関数
+  // アニメーション制御
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsVisible(true);
+    }, 100);
+    return () => clearTimeout(timer);
+  }, []);
+
+  // viewLevelが変わったときにアニメーションをリセット
+  useEffect(() => {
+    setIsVisible(false);
+    const timer = setTimeout(() => {
+      setIsVisible(true);
+    }, 50);
+    return () => clearTimeout(timer);
+  }, [viewLevel]);
+
   const updateSavedState = useCallback(() => {
     setSavedMinorCharts(JSON.parse(JSON.stringify(minorCharts)));
   }, [minorCharts]);
 
-  // 初期保存状態を設定
   useEffect(() => {
     setSavedMinorCharts(JSON.parse(JSON.stringify(minorCharts)));
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // カスタムイベントリスナーを追加
   useEffect(() => {
     const handleGoalUpdate = () => {
       console.log("保存状態を更新します");
@@ -348,8 +401,7 @@ const MandalaChart: React.FC = () => {
   }, [minorCharts]);
 
   const location = useLocation();
-  // マンダラページに来たときにデータを再読み込み
-  // ページ遷移時のデータ読み込み
+  
   useEffect(() => {
     console.log('=== Mandala Page Loaded/Navigated ===');
     
@@ -371,7 +423,6 @@ const MandalaChart: React.FC = () => {
       const parsed = JSON.parse(savedMinorCharts);
       console.log('🔍 Reloaded minor charts:', parsed);
       
-      // 該当のセルを探す
       Object.entries(parsed).forEach(([, chart]: [string, any]) => {
         chart.cells.forEach((cell: any) => {
           if (cell.title === "1年目に売上100万円") {
@@ -392,11 +443,9 @@ const MandalaChart: React.FC = () => {
     console.log('=== Mandala Data Reloaded ===');
   }, [location]);
 
-  // minorChartsが更新されたとき
   useEffect(() => {
     console.log('📝 minorCharts state updated');
     
-    // 該当のセルを確認
     Object.entries(minorCharts).forEach(([, chart]) => {
       chart.cells.forEach((cell) => {
         if (cell.title === "1年目に売上100万円") {
@@ -410,7 +459,7 @@ const MandalaChart: React.FC = () => {
         }
       });
     });
-  }, [minorCharts]); // middleChartsを依存配列から削除
+  }, [minorCharts]);
 
   useEffect(() => {
     const charts: { [key: string]: MandalaSubChart } = {};
@@ -472,7 +521,6 @@ const MandalaChart: React.FC = () => {
     setSelectedMiddleCellId(null);
   };
 
-  // モーダルを開く関数
   const openGoalInputModal = (
     cellId: string, 
     cellType: 'center' | 'major' | 'middle' | 'minor', 
@@ -486,7 +534,6 @@ const MandalaChart: React.FC = () => {
     });
   };
 
-  // モーダルからの送信処理
   const handleGoalSubmit = (
     goal: string, 
     goalType: 'qualitative' | 'revenue' | 'grossProfit' | 'operatingProfit'
@@ -496,7 +543,6 @@ const MandalaChart: React.FC = () => {
     if (cellType === 'center') {
       setCenterGoal(goal);
       
-      // 中心セルにもplMetricを保存
       const plMetric = 
         goalType === 'revenue' ? 'revenue' :
         goalType === 'grossProfit' ? 'grossProfit' :
@@ -509,7 +555,6 @@ const MandalaChart: React.FC = () => {
         localStorage.removeItem('mandala_center_plMetric_v2');
       }
     } else if (cellType === 'major') {
-      // 大目標にもplMetricを設定
       const plMetric = 
         goalType === 'revenue' ? 'revenue' :
         goalType === 'grossProfit' ? 'grossProfit' :
@@ -550,14 +595,12 @@ const MandalaChart: React.FC = () => {
     }
   };
 
-  // handleMinorCheck関数の前に追加
   const saveMinorCell = (cellId: string) => {
     const chartId = Object.keys(minorCharts).find(key =>
       minorCharts[key].cells.some(c => c.id === cellId)
     );
     if (!chartId) return;
 
-    // 現在のセルの値で保存状態を更新
     const currentCell = minorCharts[chartId].cells.find(c => c.id === cellId);
     if (!currentCell) return;
 
@@ -612,7 +655,6 @@ const MandalaChart: React.FC = () => {
       [selectedMiddleCellId]: updatedChart,
     });
   
-    // チェック状態変更時に自動的に保存状態も更新
     setSavedMinorCharts(prev => ({
       ...prev,
       [selectedMiddleCellId]: updatedChart,
@@ -630,11 +672,9 @@ const MandalaChart: React.FC = () => {
     const checkedCount = minorCells.filter((c) => c.isChecked).length;
     const achievement = Math.round((checkedCount / 10) * 100);
 
-    // 全ての中目標をチェックして、このminorChartに対応する中目標を全て更新
     Object.entries(middleCharts).forEach(([majorId, middleChart]) => {
       let hasUpdate = false;
       const updatedCells = middleChart.cells.map((cell) => {
-        // この中目標のIDが、更新対象のminorChartのIDと一致するかチェック
         if (cell.id === middleCellId) {
           console.log('✅ Found matching middle cell:', {
             majorId,
@@ -646,7 +686,6 @@ const MandalaChart: React.FC = () => {
 
           const prevCell = cell;
 
-          // すでに達成済みの場合はスキップ
           if (prevCell.status === "achieved") {
             console.log('⏭️ Skipping already achieved cell:', cell.id);
             return cell;
@@ -661,7 +700,6 @@ const MandalaChart: React.FC = () => {
             status: isPLMetric ? prevCell.status : getCellStatus(achievement),
           };
 
-          // 達成時のポップアップ表示
           if (
             !isPLMetric &&
             achievement === 100 &&
@@ -680,7 +718,6 @@ const MandalaChart: React.FC = () => {
         return cell;
       });
 
-      // 更新があった場合のみsetStateを実行
       if (hasUpdate) {
         console.log('💾 Updating middle chart:', majorId);
         setMiddleCharts((prev) => ({
@@ -761,8 +798,8 @@ const MandalaChart: React.FC = () => {
     }
   
     const checked = minorChart.cells.filter((c) => c.isChecked).length;
-    const totalRings = 10; // 小目標は常に10個
-    const filledRings = checked; // 達成した数
+    const totalRings = 10;
+    const filledRings = checked;
   
     return {
       filledRings: filledRings,
@@ -771,7 +808,6 @@ const MandalaChart: React.FC = () => {
     };
   };
 
-  // 変更があるかチェックする関数（小目標のみ）
   const isMinorCellChanged = (cellId: string) => {
     const chartId = Object.keys(minorCharts).find(key =>
       minorCharts[key].cells.some(c => c.id === cellId)
@@ -799,14 +835,11 @@ const MandalaChart: React.FC = () => {
   
     return (
       <div 
-        className="fixed hidden lg:block" 
         style={{ 
-          top: '132px', 
-          right: '50px',
           width: '34px',
           height: '32px',
           opacity: 1,
-          zIndex: 10
+          flexShrink: 0
         }}
       >
         <img 
@@ -820,35 +853,44 @@ const MandalaChart: React.FC = () => {
 
   const renderMajorView = () => {
     const gridOrder = [0, 1, 2, 3, null, 4, 5, 6, 7];
+    
+    // 時計回りのアニメーション順序（中心が0、その周りを時計回り）
+    // 上: 1, 右上: 2, 右: 4, 右下: 7, 下: 6, 左下: 5, 左: 3, 左上: 0
+    const animationOrder = [null, 1, 2, 4, 7, 6, 5, 3, 0];
   
     return (
       <div className="space-y-8">
         <div className="flex flex-col lg:flex-row justify-center items-start gap-8">
-          <div 
-            className="grid grid-cols-3"
-            style={{
-              width: '632px',
-              height: '632px',
-              gap: '16px',
-              position: 'relative'
-            }}
-          >
+        <div 
+          className="grid grid-cols-3 w-full max-w-[632px]"
+          style={{
+            aspectRatio: '1/1',
+            gap: 'clamp(4px, 2vw, 16px)',
+          }}
+        >
             {gridOrder.map((cellIndex) => {
+              // アニメーションの遅延を計算
+              const animationIndex = animationOrder.indexOf(cellIndex);
+              const delay = animationIndex * 100;
+
               if (cellIndex === null) {
                 const isCenterHovered = hoveredCellId === 'center';
                 
                 return (
                   <div
                     key="center"
-                    className="aspect-square p-4 flex flex-col items-center justify-center hover:shadow-lg transition-all group"
+                    className={`aspect-square p-4 flex flex-col items-center justify-center hover:shadow-lg transition-all group duration-500 ${
+                      isVisible ? 'opacity-100 scale-100' : 'opacity-0 scale-90'
+                    }`}
                     style={{
-                      width: '200px',
-                      height: '200px',
-                      borderRadius: '20px',
+                      width: '100%',
+                      height: '100%',
+                      borderRadius: 'clamp(10px, 3vw, 20px)',
                       boxShadow: '0px 4px 12px 0px rgba(72, 82, 84, 0.1)',
                       border: 'none',
                       background: '#FFFFFF',
-                      position: 'relative'
+                      position: 'relative',
+                      transitionDelay: '0ms'
                     }}
                     onMouseEnter={() => setHoveredCellId('center')}
                     onMouseLeave={() => setHoveredCellId(null)}
@@ -862,7 +904,7 @@ const MandalaChart: React.FC = () => {
                           transform: 'translate(-50%, -50%)',
                           fontFamily: 'Inter',
                           fontWeight: 400,
-                          fontSize: '14px',
+                          fontSize: 'clamp(8px, 1.6vw, 14px)',
                           color: 'rgba(19, 174, 103, 0.5)',
                           whiteSpace: 'nowrap',
                           zIndex: 5
@@ -875,15 +917,15 @@ const MandalaChart: React.FC = () => {
                     <div
                       style={{
                         position: 'absolute',
-                        width: '84px',
-                        height: '15px',
+                        width: 'auto',
+                        height: 'auto',
                         top: '50%',
                         left: '50%',
-                        transform: 'translate(-50%, -85px)',
+                        transform: 'translate(-50%, clamp(-48px, -6vw, -75px))',
                         fontFamily: 'Inter',
                         fontWeight: 400,
                         fontStyle: 'normal',
-                        fontSize: '12px',
+                        fontSize: 'clamp(8px, 1.6vw, 12px)',
                         lineHeight: '100%',
                         letterSpacing: '0%',
                         textAlign: 'center',
@@ -898,16 +940,19 @@ const MandalaChart: React.FC = () => {
                       className="bg-transparent border-none text-center cursor-pointer z-20"
                       style={{
                         position: 'absolute',
-                        width: '160px',
-                        height: '80px', // 高さを増やす
+                        width: 'min(140px, 80%)',
+                        height: 'auto',
+                        maxHeight: '45%',
                         top: '50%',
                         left: '50%',
-                        transform: 'translate(-50%, -40px)', // 中央配置調整
+                        transform: 'translate(-50%, clamp(-26px, -3vw, -38px))',
                         fontFamily: 'Inter',
                         fontWeight: 700,
                         fontStyle: 'normal',
-                        fontSize: centerGoal.includes('\n') ? '16px' : '20px', // 改行がある場合は小さく
-                        lineHeight: centerGoal.includes('\n') ? '22px' : '32px', // 行間も調整
+                        fontSize: centerGoal.includes('\n') 
+                          ? 'clamp(10px, 2.4vw, 16px)' 
+                          : 'clamp(12px, 3vw, 20px)',
+                        lineHeight: centerGoal.includes('\n') ? 'clamp(15px, 3vw, 22px)' : 'clamp(18px, 4vw, 30px)',
                         letterSpacing: '0%',
                         textAlign: 'center',
                         color: '#13AE67',
@@ -918,7 +963,7 @@ const MandalaChart: React.FC = () => {
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        padding: '0'
+                        padding: '0 2px'
                       }}
                     >
                       {centerGoal || ''}
@@ -943,125 +988,130 @@ const MandalaChart: React.FC = () => {
                   : cell.status;
   
               return (
-                <MandalaCellFrame
+                <div
                   key={cell.id}
-                  status={cell.status}
-                  visualStatus={visualStatus}
-                  isHoverable={true}
+                  className={`transition-all duration-500 ${
+                    isVisible ? 'opacity-100 scale-100' : 'opacity-0 scale-90'
+                  }`}
+                  style={{
+                    transitionDelay: `${delay}ms`
+                  }}
                 >
-                  <div 
-                    className="flex flex-col items-center h-full group"
-                    onMouseEnter={() => setHoveredCellId(cell.id)}
-                    onMouseLeave={() => setHoveredCellId(null)}
+                  <MandalaCellFrame
+                    status={cell.status}
+                    visualStatus={visualStatus}
+                    isHoverable={true}
                   >
-                    <div className="relative w-full flex-1 min-h-0">
-                      {isCellHovered && !cell.title && (
-                        <div
-                          className="absolute pointer-events-none transition-opacity duration-200 z-30"
-                          style={{
-                            top: '50%',
-                            left: '50%',
-                            transform: 'translate(-50%, -50%)',
-                            fontFamily: 'Inter',
-                            fontWeight: 400,
-                            fontSize: '14px',
-                            color: 'rgba(19, 174, 103, 0.5)',
-                            whiteSpace: 'nowrap'
-                          }}
-                        >
-                          どんな目標にする？
-                        </div>
-                      )}
-                      
-                      {cell.title && (
-                        <>
-                          {isFullyCompleted ? (
+                    <div 
+                      className="flex flex-col items-center h-full group"
+                      onMouseEnter={() => setHoveredCellId(cell.id)}
+                      onMouseLeave={() => setHoveredCellId(null)}
+                    >
+                      <div className="relative w-full flex-1 min-h-0">
+                        {isCellHovered && !cell.title && (
+                          <div
+                            className="absolute pointer-events-none transition-opacity duration-200 z-30"
+                            style={{
+                              top: '50%',
+                              left: '50%',
+                              transform: 'translate(-50%, -50%)',
+                              fontFamily: 'Inter',
+                              fontWeight: 400,
+                              fontSize: 'clamp(7px, 1.4vw, 14px)',
+                              color: 'rgba(19, 174, 103, 0.5)',
+                              whiteSpace: 'nowrap'
+                            }}
+                          >
+                            どんな目標にする？
+                          </div>
+                        )}
+                        
+                        {cell.title && (
+                          <>
+                            {isFullyCompleted ? (
                             <img
                               src={complate_icon}
                               alt="達成リング"
-                              className="absolute pointer-events-none"
+                              className="absolute pointer-events-none z-10"
                               style={{
-                                width: '180px',
-                                height: '180px',
+                                width: window.innerWidth < 768 ? '100%' : '210px',
+                                height: window.innerWidth < 768 ? '100%' : '210px',
                                 objectFit: 'contain',
                                 top: '50%',
                                 left: '50%',
-                                transform: 'translate(-50%, calc(-50% + 10px))'
+                                transform: `translate(-50%, calc(-50% + ${window.innerWidth < 768 ? '8px' : '22px'}))`
                               }}
                             />
                           ) : ringRatios.length > 0 ? (
                             <MajorRingProgress
                               ringRatios={ringRatios}
                               size={190}
-                              offsetY={22}
+                              offsetY={window.innerWidth < 768 ? 8 : 22}
                             />
                           ) : null}
-                        </>
-                      )}
+                          </>
+                        )}
 
-                      <div className="absolute inset-0 flex items-center justify-center z-20">
-                        <div
-                          onClick={() => openGoalInputModal(cell.id, 'major', cell.title)}
-                          className="bg-transparent border-none text-center cursor-pointer hover:bg-white/50 transition-colors"
-                          style={{
-                            position: 'absolute',
-                            width: '103px',
-                            height: '69px',
-                            fontFamily: 'Inter',
-                            fontStyle: 'normal',
-                            fontWeight: 600,
-                            fontSize: '14px',
-                            lineHeight: '24px',
-                            textAlign: 'center',
-                            whiteSpace: 'pre-wrap',
-                            overflow: 'hidden',
-                            wordBreak: 'break-all',
-                            overflowWrap: 'break-word',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            padding: '0',
-                            left: '50%',
-                            top: '50%',
-                            transform: 'translate(-50%, calc(-50% + 10px))',
-                            color: visualStatus === "achieved" ? '#F2A1A0' : '#13AE67'
-                          }}  
-                        >
-                          {cell.title || ''}
+                        <div className="absolute inset-0 flex items-center justify-center z-20">
+                          <div
+                            onClick={() => openGoalInputModal(cell.id, 'major', cell.title)}
+                            className="bg-transparent border-none text-center cursor-pointer hover:bg-white/50 transition-colors"
+                            style={{
+                              position: 'absolute',
+                              width: 'min(100px, 65%)',
+                              height: 'auto',
+                              maxHeight: '50%',
+                              fontFamily: 'Inter',
+                              fontStyle: 'normal',
+                              fontWeight: 600,
+                              fontSize: 'clamp(9px, 1.8vw, 14px)',
+                              lineHeight: 'clamp(13px, 2.6vw, 20px)',
+                              textAlign: 'center',
+                              whiteSpace: 'pre-wrap',
+                              overflow: 'hidden',
+                              wordBreak: 'break-all',
+                              overflowWrap: 'break-word',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              padding: '2px',
+                              left: '50%',
+                              top: '50%',
+                              transform: 'translate(-50%, calc(-50% + clamp(3px, 1vw, 8px)))',
+                              color: visualStatus === "achieved" ? '#F2A1A0' : '#13AE67'
+                            }}  
+                          >
+                            {cell.title || ''}
+                          </div>
                         </div>
                       </div>
-                    </div>
 
-                    {cell.title && (
-                      <button
-                        onClick={() => handleMajorCellClick(cell.id)}
-                        className="opacity-0 group-hover:opacity-100 transition-opacity text-note text-primary hover:text-primary/80 font-semibold bg-white/90 rounded-full px-4 py-2 shadow-md cursor-pointer z-30 mt-2"
-                        style={{ width: '140px' }}
-                      >
-                        中目標を設定 →
-                      </button>
-                    )}
-                  </div>
-                </MandalaCellFrame>
+                      {cell.title && (
+                        <button
+                          onClick={() => handleMajorCellClick(cell.id)}
+                          className="md:opacity-0 md:group-hover:opacity-100 transition-opacity text-note text-primary hover:text-primary/80 font-semibold bg-white/90 rounded-full shadow-md cursor-pointer z-30"
+                          style={{ 
+                            width: 'clamp(90px, 22vw, 140px)',
+                            fontSize: 'clamp(8px, 1.6vw, 12px)',
+                            padding: 'clamp(3px, 0.8vw, 8px) clamp(6px, 1.5vw, 16px)',
+                            marginTop: 'clamp(2px, 0.5vw, 8px)'
+                          }}
+                        >
+                          中目標を設定 →
+                        </button>
+                      )}
+                    </div>
+                  </MandalaCellFrame>
+                </div>
               );
             })}
           </div>
-          <div className="hidden lg:flex fixed items-start" style={{ gap: '8px', right: '50px', top: '132px' }}>
-            <p style={{
-              position: 'absolute',
-              right: '70px',
-              top: '14px',
-              fontFamily: 'Inter',
-              fontWeight: 400,
-              fontSize: '12px',
-              lineHeight: '100%',
-              color: '#9CA3AF',
-              whiteSpace: 'nowrap',
-              visibility: 'hidden'
-            }}>
-              今は大目標を表示しています
-            </p>
-            <div style={{ width: '40px', height: '40px', visibility: 'hidden' }}></div>
+          <div 
+            className="fixed top-[70px] right-4 lg:right-8 lg:top-[100px]"
+            style={{ 
+              zIndex: 20
+            }}
+          >
             <LevelIndicator />
           </div>
         </div>
@@ -1078,101 +1128,116 @@ const MandalaChart: React.FC = () => {
     const middleChart = middleCharts[selectedMajorCellId];
   
     const gridOrder = [0, 1, 2, 3, null, 4, 5, 6, 7];
+    const animationOrder = [null, 1, 2, 4, 7, 6, 5, 3, 0];
   
     return (
       <div className="space-y-6">
         <div className="flex flex-col lg:flex-row justify-center items-start gap-8 relative">
-          <div 
-            className="grid grid-cols-3"
-            style={{
-              width: '632px',
-              height: '632px',
-              gap: '16px',
-              position: 'relative'
-            }}
-          >
+        <div 
+          className="grid grid-cols-3 w-full max-w-[632px]"
+          style={{
+            aspectRatio: '1/1',
+            gap: 'clamp(4px, 2vw, 16px)',
+            position: 'relative'
+          }}
+        >
             {gridOrder.map((cellIndex) => {
-                if (cellIndex === null) {
-                  return (
+              const animationIndex = animationOrder.indexOf(cellIndex);
+              const delay = animationIndex * 100;
+
+              if (cellIndex === null) {
+                return (
+                  <div
+                    key="center"
+                    className={`aspect-square p-4 flex flex-col items-center justify-center transition-all duration-500 ${
+                      isVisible ? 'opacity-100 scale-100' : 'opacity-0 scale-90'
+                    }`}
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      borderRadius: 'clamp(10px, 3vw, 20px)',
+                      boxShadow: '0px 4px 12px 0px rgba(72, 82, 84, 0.1)',
+                      border: 'none',
+                      background: '#FFFFFF',
+                      position: 'relative',
+                      transitionDelay: '0ms'
+                    }}
+                  >
                     <div
-                      key="center"
-                      className="aspect-square p-4 flex flex-col items-center justify-center"
                       style={{
-                        width: '200px',
-                        height: '200px',
-                        borderRadius: '20px',
-                        boxShadow: '0px 4px 12px 0px rgba(72, 82, 84, 0.1)',
-                        border: 'none',
-                        background: '#FFFFFF',
-                        position: 'relative'
+                        position: 'absolute',
+                        width: 'auto',
+                        height: 'auto',
+                        top: '50%',
+                        left: '50%',
+                        transform: 'translate(-50%, clamp(-48px, -6vw, -75px))',
+                        fontFamily: 'Inter',
+                        fontWeight: 400,
+                        fontStyle: 'normal',
+                        fontSize: 'clamp(8px, 1.6vw, 12px)',
+                        lineHeight: '100%',
+                        letterSpacing: '0%',
+                        textAlign: 'center',
+                        color: '#13AE67'
                       }}
                     >
-                      <div
-                        style={{
-                          position: 'absolute',
-                          width: '84px',
-                          height: '15px',
-                          top: '50%',
-                          left: '50%',
-                          transform: 'translate(-50%, -85px)',
-                          fontFamily: 'Inter',
-                          fontWeight: 400,
-                          fontStyle: 'normal',
-                          fontSize: '12px',
-                          lineHeight: '100%',
-                          letterSpacing: '0%',
-                          textAlign: 'center',
-                          color: '#13AE67'
-                        }}
-                      >
-                        私が叶える目標
-                      </div>
-  
-                      <div
-                        style={{
-                          position: 'absolute',
-                          width: '160px',
-                          top: '50%',
-                          left: '50%',
-                          transform: 'translate(-50%, -32px)',
-                          fontFamily: 'Inter',
-                          fontWeight: 600,
-                          fontStyle: 'normal',
-                          fontSize: '14px',
-                          lineHeight: '24px',
-                          letterSpacing: '0%',
-                          textAlign: 'center',
-                          color: '#13AE67',
-                          whiteSpace: 'normal',
-                          overflow: 'hidden',
-                          wordBreak: 'break-all',
-                          overflowWrap: 'break-word',
-                          display: 'block'
-                        }}
-                      >
-                        {majorCell.title}
-                      </div>
+                      私が叶える目標
                     </div>
-                  );
-                }
-  
-                const cell = middleChart.cells[cellIndex];
-                const progress = getMiddleCellProgress(cell.id);
-                const isCellHovered = hoveredCellId === cell.id;
-  
-                const mandalaCompleted = progress.isCompleted;
-  
-                const isFullyCompleted =
-                  mandalaCompleted && cell.status === "achieved";
-  
-                const visualStatus: MandalaCell["status"] =
-                  cell.status === "achieved" && !mandalaCompleted
-                    ? "in_progress"
-                    : cell.status;
-  
-                return (
+
+                    <div
+                      style={{
+                        position: 'absolute',
+                        width: 'min(140px, 80%)',
+                        top: '50%',
+                        left: '50%',
+                        transform: 'translate(-50%, clamp(-22px, -2.8vw, -30px))',
+                        fontFamily: 'Inter',
+                        fontWeight: 600,
+                        fontStyle: 'normal',
+                        fontSize: 'clamp(9px, 1.8vw, 14px)',
+                        lineHeight: 'clamp(13px, 2.6vw, 20px)',
+                        letterSpacing: '0%',
+                        textAlign: 'center',
+                        color: '#13AE67',
+                        whiteSpace: 'normal',
+                        overflow: 'hidden',
+                        wordBreak: 'break-all',
+                        overflowWrap: 'break-word',
+                        display: 'block',
+                        padding: '0 2px'
+                      }}
+                    >
+                      {majorCell.title}
+                    </div>
+                  </div>
+                );
+              }
+
+              const cell = middleChart.cells[cellIndex];
+              const progress = getMiddleCellProgress(cell.id);
+              const isCellHovered = hoveredCellId === cell.id;
+
+              const mandalaCompleted = progress.isCompleted;
+
+              const isFullyCompleted =
+                mandalaCompleted && cell.status === "achieved";
+
+              const visualStatus: MandalaCell["status"] =
+                cell.status === "achieved" && !mandalaCompleted
+                  ? "in_progress"
+                  : cell.status;
+
+              return (
+                <div
+                  key={cell.id}
+                  className={`transition-all duration-500 ${
+                    isVisible ? 'opacity-100 scale-100' : 'opacity-0 scale-90'
+                  }`}
+                  style={{
+                    transitionDelay: `${delay}ms`
+                  }}
+                >
                   <MandalaCellFrame
-                    key={cell.id}
                     status={cell.status}
                     visualStatus={visualStatus}
                     isHoverable={true}
@@ -1192,7 +1257,7 @@ const MandalaChart: React.FC = () => {
                               transform: 'translate(-50%, -50%)',
                               fontFamily: 'Inter',
                               fontWeight: 400,
-                              fontSize: '14px',
+                              fontSize: 'clamp(12px, 2.5vw, 14px)',
                               color: 'rgba(19, 174, 103, 0.5)',
                               whiteSpace: 'nowrap'
                             }}
@@ -1204,43 +1269,44 @@ const MandalaChart: React.FC = () => {
                         {cell.title && (
                           <>
                             {isFullyCompleted ? (
-                              <img
-                                src={complate_icon}
-                                alt="達成リング"
-                                className="absolute pointer-events-none"
-                                style={{
-                                  width: '190px',
-                                  height: '190px',
-                                  objectFit: 'contain',
-                                  top: '50%',
-                                  left: '50%',
-                                  transform: 'translate(-50%, calc(-50% + 10px))'
-                                }}
-                              />
-                            ) : progress.totalRings > 0 ? (
-                              <MultiRingProgress
-                                totalRings={progress.totalRings}
-                                filledRings={progress.filledRings}
-                                isCompleted={false}
-                                size={190}
-                                offsetY={22}
-                              />
-                            ) : null}
+                            <img
+                              src={complate_icon}
+                              alt="達成リング"
+                              className="absolute pointer-events-none z-10"
+                              style={{
+                                width: window.innerWidth < 768 ? '100%' : '210px',
+                                height: window.innerWidth < 768 ? '100%' : '210px',
+                                objectFit: 'contain',
+                                top: '50%',
+                                left: '50%',
+                                transform: `translate(-50%, calc(-50% + ${window.innerWidth < 768 ? '8px' : '22px'}))`
+                              }}
+                            />
+                          ) : progress.totalRings > 0 ? (
+                            <MultiRingProgress
+                              totalRings={progress.totalRings}
+                              filledRings={progress.filledRings}
+                              isCompleted={false}
+                              size={190}
+                              offsetY={window.innerWidth < 768 ? 8 : 22}
+                            />
+                          ) : null}
                           </>
                         )}
-  
+
                         <div className="absolute inset-0 flex items-center justify-center">
                           <div
                             onClick={() => openGoalInputModal(cell.id, 'middle', cell.title)}
                             className="bg-transparent border-none text-center cursor-pointer hover:bg-white/50 transition-colors"
                             style={{
                               position: 'absolute',
-                              width: '103px',
-                              height: '69px',
+                              width: 'min(100px, 65%)',
+                              height: 'auto',
+                              maxHeight: '50%',
                               fontFamily: 'Inter',
                               fontWeight: 600,
-                              fontSize: '14px',
-                              lineHeight: '24px',
+                              fontSize: 'clamp(9px, 1.8vw, 14px)',
+                              lineHeight: 'clamp(13px, 2.6vw, 20px)',
                               textAlign: 'center',
                               whiteSpace: 'pre-wrap',
                               overflow: 'hidden',
@@ -1249,10 +1315,10 @@ const MandalaChart: React.FC = () => {
                               display: 'flex',
                               alignItems: 'center',
                               justifyContent: 'center',
-                              padding: '0',
+                              padding: '2px',
                               left: '50%',
                               top: '50%',
-                              transform: 'translate(-50%, calc(-50% + 10px))',
+                              transform: 'translate(-50%, calc(-50% + clamp(3px, 1vw, 8px)))',
                               color: visualStatus === "achieved" ? '#F2A1A0' : '#13AE67'
                             }}
                           >
@@ -1260,45 +1326,78 @@ const MandalaChart: React.FC = () => {
                           </div>
                         </div>
                       </div>
-  
+
                       {cell.title && (
                         <button
                           onClick={() => handleMiddleCellClick(cell.id)}
-                          className="opacity-0 group-hover:opacity-100 transition-opacity text-note text-primary hover:text-primary/80 font-semibold bg-white/90 rounded-full px-4 py-2 shadow-md cursor-pointer z-30 mt-2"
-                          style={{ width: '140px' }}
+                          className="md:opacity-0 md:group-hover:opacity-100 transition-opacity text-note text-primary hover:text-primary/80 font-semibold bg-white/90 rounded-full shadow-md cursor-pointer z-30"
+                          style={{ 
+                            width: 'clamp(90px, 22vw, 140px)',
+                            fontSize: 'clamp(8px, 1.6vw, 12px)',
+                            padding: 'clamp(3px, 0.8vw, 8px) clamp(6px, 1.5vw, 16px)',
+                            marginTop: 'clamp(2px, 0.5vw, 8px)'
+                          }}
                         >
                           小目標を設定 →
                         </button>
                       )}
                     </div>
                   </MandalaCellFrame>
-                );
-              })}
-            </div>
+                </div>
+              );
+            })}
+          </div>
 
-            <div className="hidden lg:flex fixed items-start" style={{ gap: '8px', right: '120px', top: '132px' }}>
-              <p style={{
-                position: 'absolute',
-                right: '70px',
-                top: '14px',
+          <div 
+            className="fixed top-[70px] right-4 lg:right-8 lg:top-[100px]"
+            style={{ 
+              zIndex: 20
+            }}
+          >
+            <LevelIndicator />
+          </div>
+
+          <div 
+            className="fixed top-[70px] right-[60px] lg:right-[84px] lg:top-[100px]"
+            style={{ 
+              zIndex: 20,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}
+          >
+            <p 
+              style={{
                 fontFamily: 'Inter',
                 fontWeight: 400,
-                fontSize: '12px',
+                fontSize: 'clamp(10px, 2vw, 12px)',
                 lineHeight: '100%',
                 color: '#9CA3AF',
                 whiteSpace: 'nowrap'
-              }}>
-                今は中目標を表示しています
-              </p>
-              <button
-                onClick={handleBackToMajor}
-                className="flex items-center justify-center w-10 h-10 bg-white hover:bg-gray-50 rounded-full shadow-md transition-colors cursor-pointer"
-                title="大目標に戻る"
-              >
-                <ArrowLeft className="w-5 h-5 text-primary" style={{ transform: 'rotate(90deg)' }} />
-              </button>
-              <LevelIndicator />
-            </div>
+              }}
+            >
+              今は中目標を表示しています
+            </p>
+            
+            <button
+              onClick={handleBackToMajor}
+              className="flex items-center justify-center bg-white hover:bg-gray-50 rounded-full shadow-md transition-colors cursor-pointer"
+              title="大目標に戻る"
+              style={{
+                width: '40px',
+                height: '40px'
+              }}
+            >
+              <ArrowLeft 
+                className="text-primary" 
+                style={{ 
+                  transform: 'rotate(90deg)', 
+                  width: '20px', 
+                  height: '20px' 
+                }} 
+              />
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -1325,220 +1424,264 @@ const MandalaChart: React.FC = () => {
         ? middleChartOfSelectedMajor.cells[middleCellIndex]
         : null;
   
-        return (
-          <div className="flex flex-col lg:flex-row justify-center items-start gap-8 relative">
-            <div className="flex-1 space-y-6" style={{ maxWidth: '660px' }}>
-              <div className="w-full">
-                <div 
-                  style={{
-                    width: '660px',
-                  height: '96px',
-                  borderRadius: '20px',
+    return (
+      <div className="space-y-4 md:space-y-6">
+        <div className="flex flex-col lg:flex-row justify-center items-start gap-8 relative">
+          <div className="flex-1 space-y-4 md:space-y-6" style={{ maxWidth: '660px', width: '100%' }}>
+            <div 
+              className={`w-full transition-all duration-500 ${
+                isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'
+              }`}
+              style={{
+                transitionDelay: '0ms'
+              }}
+            >
+              <div 
+                style={{
+                  width: '100%',
+                  maxWidth: '660px',
+                  height: 'auto',
+                  minHeight: 'clamp(64px, 12vw, 96px)',
+                  borderRadius: 'clamp(12px, 3vw, 20px)',
                   background: '#FFFFFF',
                   boxShadow: '0px 4px 12px 0px rgba(72, 82, 84, 0.1)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  padding: '16px'
+                  padding: 'clamp(12px, 2.5vw, 16px)'
                 }}
               >
-              <p
-                style={{
-                  fontFamily: 'Inter',
-                  fontWeight: 700,
-                  fontSize: '20px',
-                  lineHeight: '32px',
-                  letterSpacing: '0%',
-                  textAlign: 'center',
-                  color: '#13AE67',
-                  whiteSpace: 'pre-wrap',
-                  margin: 0
-                }}
-              >
-                {middleCell?.title || ""}
-              </p>
-            </div>
-          </div>
-  
-          <div className="space-y-4">
-          {minorChart.cells.map((cell) => {
-            const isCellHovered = hoveredCellId === cell.id;
-            const cellChanged = isMinorCellChanged(cell.id);
-
-            return (
-              <div
-                key={cell.id}
-                className="flex items-center transition-all relative group"
-                style={{
-                  width: '660px',
-                  height: '48px',
-                  borderRadius: '20px',
-                  background: cellChanged ? 'rgba(19, 174, 103, 0.05)' : '#FFFFFF',
-                  boxShadow: '0px 4px 12px 0px rgba(72, 82, 84, 0.1)',
-                  padding: '8px 12px',
-                  gap: '12px'
-                }}
-                onMouseEnter={() => setHoveredCellId(cell.id)}
-                onMouseLeave={() => setHoveredCellId(null)}
-              >
-                {isCellHovered && !cell.title && (
-                  <div
-                    className="absolute pointer-events-none transition-opacity duration-200"
-                    style={{
-                      left: '50%',
-                      transform: 'translateX(-50%)',
-                      fontFamily: 'Inter',
-                      fontWeight: 400,
-                      fontSize: '14px',
-                      color: 'rgba(19, 174, 103, 0.5)',
-                      whiteSpace: 'nowrap',
-                      zIndex: 20
-                    }}
-                  >
-                    どんな目標にする？
-                  </div>
-                )}
-                
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleMinorCheck(cell.id);
-                  }}
-                  disabled={!cell.title}
-                  className="flex-shrink-0 flex items-center justify-center transition-all relative"
-                  style={{
-                    width: '24px',
-                    height: '24px',
-                    cursor: cell.title ? 'pointer' : 'not-allowed',
-                    opacity: !cell.title ? 0.5 : 1
-                  }}
-                >
-                  {cell.isChecked ? (
-                    <>
-                      <div 
-                        style={{
-                          position: 'absolute',
-                          width: '24px',
-                          height: '24px',
-                          background: '#13AE6773',
-                          borderRadius: '50%',
-                          opacity: 0.45
-                        }}
-                      />
-                      <img 
-                        src={heart_icon} 
-                        alt="完了" 
-                        style={{
-                          width: '14px',
-                          height: '12px',
-                          objectFit: 'contain',
-                          position: 'relative',
-                          zIndex: 1
-                        }}
-                      />
-                    </>
-                  ) : (
-                    <div 
-                      style={{
-                        width: '24px',
-                        height: '24px',
-                        border: '2px solid #E5E7EB',
-                        borderRadius: '50%'
-                      }}
-                    />
-                  )}
-                </button>
-
-                <div className="flex-1 min-w-0 flex items-center">
-                  <input
-                    type="text"
-                    value={cell.title}
-                    onChange={(e) => {
-                      const newTitle = e.target.value;
-                      setMinorCharts({
-                        ...minorCharts,
-                        [selectedMiddleCellId!]: {
-                          ...minorCharts[selectedMiddleCellId!],
-                          cells: minorCharts[selectedMiddleCellId!].cells.map((c) =>
-                            c.id === cell.id ? { ...c, title: newTitle } : c
-                          ),
-                        },
-                      });
-                    }}
-                    placeholder=""
-                    className="w-full bg-transparent font-medium"
-                    style={{
-                      fontFamily: 'Inter',
-                      fontWeight: 700,
-                      fontSize: '16px',
-                      lineHeight: '32px',
-                      letterSpacing: '0%',
-                      color: '#13AE67',
-                      padding: '0',
-                      textAlign: 'left',
-                      border: 'none',
-                      outline: 'none',
-                      boxShadow: 'none'
-                    }}
-                    onFocus={(e) => {
-                      e.target.style.outline = 'none';
-                      e.target.style.boxShadow = 'none';
-                    }}
-                  />
-                </div>
-
-                {/* 保存するボタン - 変更がある場合のみ表示 */}
-                {cellChanged && (               
-                  <button
-                  onClick={() => {
-                    // 個別のセルを保存
-                    saveMinorCell(cell.id);
-                  }}
-                  className="flex-shrink-0 transition-all hover:bg-green-600"
+                <p
                   style={{
                     fontFamily: 'Inter',
-                    fontWeight: 600,
-                    fontSize: '12px',
-                    color: '#FFFFFF',
-                    background: '#13AE67',
-                    padding: '6px 12px',
-                    borderRadius: '20px',
-                    border: 'none',
-                    cursor: 'pointer',
-                    whiteSpace: 'nowrap'
+                    fontWeight: 700,
+                    fontSize: 'clamp(14px, 3vw, 20px)',
+                    lineHeight: 'clamp(22px, 4vw, 32px)',
+                    letterSpacing: '0%',
+                    textAlign: 'center',
+                    color: '#13AE67',
+                    whiteSpace: 'pre-wrap',
+                    margin: 0
                   }}
                 >
-                  保存する
-                </button>
-                )}
-                </div>
-              );
-            })}
+                  {middleCell?.title || ""}
+                </p>
+              </div>
+            </div>
+    
+            <div className="space-y-4">
+              {minorChart.cells.map((cell, index) => {
+                const isCellHovered = hoveredCellId === cell.id;
+                const cellChanged = isMinorCellChanged(cell.id);
+                const delay = (index + 1) * 80;
+
+                return (
+                  <div
+                    key={cell.id}
+                    className={`flex items-center transition-all duration-500 relative group ${
+                      isVisible ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-8'
+                    }`}
+                    style={{
+                      width: '100%',
+                      maxWidth: '660px',
+                      height: 'clamp(40px, 8vw, 48px)',
+                      borderRadius: 'clamp(12px, 3vw, 20px)',
+                      background: cellChanged ? 'rgba(19, 174, 103, 0.05)' : '#FFFFFF',
+                      boxShadow: '0px 4px 12px 0px rgba(72, 82, 84, 0.1)',
+                      padding: 'clamp(6px, 1.5vw, 8px) clamp(8px, 2vw, 12px)',
+                      gap: 'clamp(8px, 2vw, 12px)',
+                      transitionDelay: `${delay}ms`
+                    }}
+                    onMouseEnter={() => setHoveredCellId(cell.id)}
+                    onMouseLeave={() => setHoveredCellId(null)}
+                  >
+                    {isCellHovered && !cell.title && (
+                      <div
+                        className="absolute pointer-events-none transition-opacity duration-200"
+                        style={{
+                          left: '50%',
+                          transform: 'translateX(-50%)',
+                          fontFamily: 'Inter',
+                          fontWeight: 400,
+                          fontSize: 'clamp(10px, 2vw, 14px)',
+                          color: 'rgba(19, 174, 103, 0.5)',
+                          whiteSpace: 'nowrap',
+                          zIndex: 20
+                        }}
+                      >
+                        どんな目標にする？
+                      </div>
+                    )}
+                    
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleMinorCheck(cell.id);
+                      }}
+                      disabled={!cell.title}
+                      className="flex-shrink-0 flex items-center justify-center transition-all duration-300 hover:scale-110"
+                      style={{
+                        width: 'clamp(20px, 4vw, 24px)',
+                        height: 'clamp(20px, 4vw, 24px)',
+                        cursor: cell.title ? 'pointer' : 'not-allowed',
+                        opacity: !cell.title ? 0.5 : 1
+                      }}
+                    >
+                      {cell.isChecked ? (
+                        <>
+                          <div 
+                            className="transition-all duration-300"
+                            style={{
+                              position: 'absolute',
+                              width: 'clamp(20px, 4vw, 24px)',
+                              height: 'clamp(20px, 4vw, 24px)',
+                              background: '#13AE6773',
+                              borderRadius: '50%',
+                              opacity: 0.45
+                            }}
+                          />
+                          <img 
+                            src={heart_icon} 
+                            alt="完了"
+                            className="transition-all duration-300"
+                            style={{
+                              width: 'clamp(12px, 2.5vw, 14px)',
+                              height: 'clamp(10px, 2vw, 12px)',
+                              objectFit: 'contain',
+                              position: 'relative',
+                              zIndex: 1
+                            }}
+                          />
+                        </>
+                      ) : (
+                        <div 
+                          className="transition-all duration-300 hover:border-primary"
+                          style={{
+                            width: 'clamp(20px, 4vw, 24px)',
+                            height: 'clamp(20px, 4vw, 24px)',
+                            border: '2px solid #E5E7EB',
+                            borderRadius: '50%'
+                          }}
+                        />
+                      )}
+                    </button>
+
+                    <div className="flex-1 min-w-0 flex items-center">
+                      <input
+                        type="text"
+                        value={cell.title}
+                        onChange={(e) => {
+                          const newTitle = e.target.value;
+                          setMinorCharts({
+                            ...minorCharts,
+                            [selectedMiddleCellId!]: {
+                              ...minorCharts[selectedMiddleCellId!],
+                              cells: minorCharts[selectedMiddleCellId!].cells.map((c) =>
+                                c.id === cell.id ? { ...c, title: newTitle } : c
+                              ),
+                            },
+                          });
+                        }}
+                        placeholder=""
+                        className="w-full bg-transparent font-medium"
+                        style={{
+                          fontFamily: 'Inter',
+                          fontWeight: 700,
+                          fontSize: 'clamp(12px, 2.5vw, 16px)',
+                          lineHeight: 'clamp(20px, 4vw, 32px)',
+                          letterSpacing: '0%',
+                          color: '#13AE67',
+                          padding: '0',
+                          textAlign: 'left',
+                          border: 'none',
+                          outline: 'none',
+                          boxShadow: 'none'
+                        }}
+                        onFocus={(e) => {
+                          e.target.style.outline = 'none';
+                          e.target.style.boxShadow = 'none';
+                        }}
+                      />
+                    </div>
+
+                    {cellChanged && (               
+                      <button
+                        onClick={() => {
+                          saveMinorCell(cell.id);
+                        }}
+                        className="flex-shrink-0 transition-all duration-300 hover:scale-105 hover:shadow-lg hover:-translate-y-0.5"
+                        style={{
+                          fontFamily: 'Inter',
+                          fontWeight: 600,
+                          fontSize: 'clamp(10px, 2vw, 12px)',
+                          color: '#FFFFFF',
+                          background: '#13AE67',
+                          padding: 'clamp(4px, 1vw, 6px) clamp(8px, 2vw, 12px)',
+                          borderRadius: 'clamp(12px, 3vw, 20px)',
+                          border: 'none',
+                          cursor: 'pointer',
+                          whiteSpace: 'nowrap'
+                        }}
+                      >
+                        保存する
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </div>
-        </div>
-  
-        <div className="hidden lg:flex fixed items-start" style={{ gap: '8px', right: '120px', top: '132px' }}>
-          <p style={{
-            position: 'absolute',
-            right: '70px',
-            top: '14px',
-            fontFamily: 'Inter',
-            fontWeight: 400,
-            fontSize: '12px',
-            lineHeight: '100%',
-            color: '#9CA3AF',
-            whiteSpace: 'nowrap'
-          }}>
-            今は小目標を表示しています
-          </p>
-          <button
-            onClick={handleBackToMiddle}
-            className="flex items-center justify-center w-10 h-10 bg-white hover:bg-gray-50 rounded-full shadow-md transition-colors cursor-pointer"
-            title="中目標に戻る"
+    
+          <div 
+            className="fixed top-[70px] right-4 lg:right-8 lg:top-[100px]"
+            style={{ 
+              zIndex: 20
+            }}
           >
-            <ArrowLeft className="w-5 h-5 text-primary" style={{ transform: 'rotate(90deg)' }} />
-          </button>
-          <LevelIndicator />
+            <LevelIndicator />
+          </div>
+
+          <div 
+            className="fixed top-[70px] right-[60px] lg:right-[84px] lg:top-[100px]"
+            style={{ 
+              zIndex: 20,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}
+          >
+            <p 
+              style={{
+                fontFamily: 'Inter',
+                fontWeight: 400,
+                fontSize: 'clamp(10px, 2vw, 12px)',
+                lineHeight: '100%',
+                color: '#9CA3AF',
+                whiteSpace: 'nowrap'
+              }}
+            >
+              今は小目標を表示しています
+            </p>
+            
+            <button
+              onClick={handleBackToMiddle}
+              className="flex items-center justify-center bg-white hover:bg-gray-50 rounded-full shadow-md transition-colors cursor-pointer"
+              title="中目標に戻る"
+              style={{
+                width: '40px',
+                height: '40px'
+              }}
+            >
+              <ArrowLeft 
+                className="text-primary" 
+                style={{ 
+                  transform: 'rotate(90deg)', 
+                  width: '20px', 
+                  height: '20px' 
+                }} 
+              />
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -1549,7 +1692,10 @@ const MandalaChart: React.FC = () => {
       <div 
         className="w-full max-w-6xl mx-auto"
         style={{
-          paddingTop: viewLevel === "minor" ? '60px' : '60px'
+          paddingLeft: 'clamp(16px, 4vw, 32px)',
+          paddingRight: 'clamp(16px, 4vw, 32px)',
+          paddingTop: 'clamp(40px, 10vh, 60px)',
+          paddingBottom: 'clamp(20px, 5vh, 40px)'
         }}
       >
         {viewLevel === "major" && renderMajorView()}
@@ -1567,7 +1713,6 @@ const MandalaChart: React.FC = () => {
         message="素晴らしい成果です!この調子で次の目標も達成しましょう!"
       />
 
-      {/* 目標入力モーダル */}
       <GoalInputModal
         isOpen={goalInputModal.isOpen}
         onClose={() => setGoalInputModal({ ...goalInputModal, isOpen: false })}

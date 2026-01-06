@@ -142,23 +142,23 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const userInfo = (
     <div className="p-4 sm:p-5 lg:p-6 flex justify-center" style={{ background: '#F6FAFC' }}>
       <div className="flex flex-col items-center space-y-2 sm:space-y-3">
-        <button
-          type="button"
-          onClick={handleAvatarClick}
-          className="relative rounded-full border-2 border-gray-200 overflow-hidden group focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 w-20 h-20 sm:w-24 sm:h-24"
-        >
-          {avatarPreview ? (
-            <img
-              src={avatarPreview}
-              alt={user?.name || "avatar"}
-              className="h-full w-full object-cover"
-            />
-          ) : (
-            <div className="h-full w-full bg-gray-400 text-white flex items-center justify-center text-lg sm:text-xl font-semibold">
-              {user?.name?.charAt(0) || "U"}
-            </div>
-          )}
-        </button>
+      <button
+        type="button"
+        onClick={handleAvatarClick}
+        className="relative rounded-full border-2 border-gray-200 overflow-hidden group focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 w-20 h-20 sm:w-24 sm:h-24 hover:border-primary transition-colors"
+      >
+        {avatarPreview ? (
+          <img
+            src={avatarPreview}
+            alt={user?.name || "avatar"}
+            className="h-full w-full object-cover"
+          />
+        ) : (
+          <div className="h-full w-full bg-gray-100 text-gray-400 flex items-center justify-center text-4xl sm:text-5xl font-light">
+            +
+          </div>
+        )}
+      </button>
   
         <input
           ref={avatarInputRef}
@@ -237,23 +237,23 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             {/* userInfo - 背景色と中央揃え */}
             <div className="p-4 xl:p-6 flex justify-center" style={{ background: '#F6FAFC' }}>
               <div className="flex flex-col items-center space-y-2 xl:space-y-3">
-                <button
-                  type="button"
-                  onClick={handleAvatarClick}
-                  className="relative rounded-full border-2 border-gray-200 overflow-hidden group focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 w-20 h-20 xl:w-24 xl:h-24"
-                >
-                  {avatarPreview ? (
-                    <img
-                      src={avatarPreview}
-                      alt={user?.name || "avatar"}
-                      className="h-full w-full object-cover"
-                    />
-                  ) : (
-                    <div className="h-full w-full bg-gray-400 text-white flex items-center justify-center text-lg xl:text-xl font-semibold">
-                      {user?.name?.charAt(0) || "U"}
-                    </div>
-                  )}
-                </button>
+              <button
+                type="button"
+                onClick={handleAvatarClick}
+                className="relative rounded-full border-2 border-gray-200 overflow-hidden group focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 w-20 h-20 xl:w-24 xl:h-24 hover:border-primary transition-colors"
+              >
+                {avatarPreview ? (
+                  <img
+                    src={avatarPreview}
+                    alt={user?.name || "avatar"}
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <div className="h-full w-full bg-gray-100 text-gray-400 flex items-center justify-center text-4xl xl:text-5xl font-light">
+                    +
+                  </div>
+                )}
+              </button>
 
                 <input
                   ref={avatarInputRef}
@@ -329,7 +329,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                     <Link
                       key={item.name}
                       to={item.href}
-                      className={`flex items-center py-2 xl:py-2.5 rounded-none transition-colors -ml-6 xl:-ml-9 pl-6 xl:pl-9 ${
+                      className={`flex items-center py-2 xl:py-2.5 rounded-none transition-colors -ml-6 xl:-ml-9 pl-6 xl:pl-9 -mr-3 pr-3 ${
                         isActive
                           ? "bg-white text-primary"
                           : "text-gray-700 hover:bg-gray-100"
@@ -371,7 +371,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                   <Link
                     key={item.name}
                     to={item.href}
-                    className={`flex items-center py-2 xl:py-2.5 rounded-none transition-colors -ml-6 xl:-ml-9 pl-6 xl:pl-9 ${
+                    className={`flex items-center py-2 xl:py-2.5 rounded-none transition-colors -ml-6 xl:-ml-9 pl-6 xl:pl-9 -mr-3 pr-3 ${
                       isActive
                         ? "bg-white text-primary"
                         : "text-gray-700 hover:bg-gray-100"
@@ -463,7 +463,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           </header>
 
           {/* メインコンテンツ */}
-          <main className="overflow-x-auto">
+          <main>
             {children}
           </main>
         </div>
@@ -529,7 +529,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                       <Link
                         key={item.name}
                         to={item.href}
-                        className={`flex items-center py-2 sm:py-2.5 rounded-none transition-colors -ml-6 sm:-ml-9 pl-6 sm:pl-9 ${
+                        className={`flex items-center py-2 sm:py-2.5 rounded-none transition-colors -ml-6 sm:-ml-9 pl-6 sm:pl-9 -mr-3 pr-3 ${
                           isActive
                             ? "bg-white text-primary"
                             : "text-gray-700 hover:bg-gray-100"
@@ -572,7 +572,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                       <Link
                         key={item.name}
                         to={item.href}
-                        className={`flex items-center py-2 sm:py-2.5 rounded-none transition-colors -ml-6 sm:-ml-9 pl-6 sm:pl-9 ${
+                        className={`flex items-center py-2 sm:py-2.5 rounded-none transition-colors -ml-6 sm:-ml-9 pl-6 sm:pl-9 -mr-3 pr-3 ${
                           isActive
                             ? "bg-white text-primary"
                             : "text-gray-700 hover:bg-gray-100"

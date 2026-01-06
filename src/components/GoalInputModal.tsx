@@ -1,4 +1,3 @@
-// src/components/GoalInputModal.tsx
 import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 
@@ -25,8 +24,8 @@ const GoalInputModal: React.FC<GoalInputModalProps> = ({
   const [goalText, setGoalText] = useState('');
   const [yearNumber, setYearNumber] = useState<string>('10');
   const [amount, setAmount] = useState<string>('');
+  const [isVisible, setIsVisible] = useState(false); // アニメーション用
 
-  // 既存の目標タイプを判定する関数を追加
   const detectGoalType = (value: string): GoalType | null => {
     if (!value) return null;
     if (value.includes('売上')) return 'revenue';
@@ -35,7 +34,6 @@ const GoalInputModal: React.FC<GoalInputModalProps> = ({
     return 'qualitative';
   };
 
-  // 既存の値が設定されているかチェック
   const hasExistingGoal = initialValue.trim() !== '';
   const existingGoalType = detectGoalType(initialValue);
 
@@ -45,6 +43,10 @@ const GoalInputModal: React.FC<GoalInputModalProps> = ({
       setSelectedType(null);
       setYearNumber('10');
       setAmount('');
+      // アニメーション開始
+      setTimeout(() => setIsVisible(true), 10);
+    } else {
+      setIsVisible(false);
     }
   }, [isOpen, initialValue]);
 
@@ -71,13 +73,10 @@ const GoalInputModal: React.FC<GoalInputModalProps> = ({
           selectedType === 'grossProfit' ? '粗利益' :
           '営業利益';
         
-        // 小目標（minor）の場合
         if (cellType === 'minor') {
           const formattedGoal = `${yearNumber}年目に${typeLabel}${amount}万円`;
           onSubmit(formattedGoal, selectedType);
         } else {
-          // center, major, middle の場合
-          // 営業利益のみ「年目に」の後でも改行
           const formattedGoal = selectedType === 'operatingProfit'
             ? `${yearNumber}年目に\n${typeLabel}\n${amount}万円`
             : `${yearNumber}年目に${typeLabel}\n${amount}万円`;
@@ -99,25 +98,35 @@ const GoalInputModal: React.FC<GoalInputModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
+      {/* 背景オーバーレイ - フェードイン */}
       <div
-        className="fixed inset-0 bg-black bg-opacity-50"
+        className={`fixed inset-0 bg-black transition-opacity duration-300 ${
+          isVisible ? 'opacity-50' : 'opacity-0'
+        }`}
         onClick={onClose}
       />
+      
+      {/* モーダル本体 - スケールアップ + フェードイン */}
       <div
-        className="relative bg-white rounded-3xl shadow-xl"
+        className={`relative bg-white rounded-3xl shadow-xl mx-4 transition-all duration-300 ${
+          isVisible 
+            ? 'opacity-100 scale-100 translate-y-0' 
+            : 'opacity-0 scale-95 translate-y-4'
+        }`}
         style={{
-          width: '480px',
+          width: '100%',
+          maxWidth: '480px',
           maxHeight: '90vh',
           overflow: 'auto'
         }}
       >
         {/* ヘッダー */}
-        <div className="flex items-center justify-between p-6" style={{ boxShadow: '0 1px 0 0 rgba(229, 231, 235, 0.5)' }}>
+        <div className="flex items-center justify-between p-4 sm:p-6" style={{ boxShadow: '0 1px 0 0 rgba(229, 231, 235, 0.5)' }}>
           <h2
             style={{
               fontFamily: 'Inter',
               fontWeight: 600,
-              fontSize: '20px',
+              fontSize: 'clamp(16px, 4vw, 20px)',
               color: '#13AE67'
             }}
           >
@@ -132,7 +141,7 @@ const GoalInputModal: React.FC<GoalInputModalProps> = ({
         </div>
 
         {/* コンテンツ */}
-        <div className="p-6">
+        <div className="p-4 sm:p-6">
         {!selectedType ? (
         // ステップ1: 目標タイプ選択
         <div className="space-y-4">
@@ -140,10 +149,10 @@ const GoalInputModal: React.FC<GoalInputModalProps> = ({
             style={{
               fontFamily: 'Inter',
               fontWeight: 400,
-              fontSize: '14px',
+              fontSize: 'clamp(12px, 3vw, 14px)',
               color: '#6B7280',
               textAlign: 'center',
-              marginBottom: '24px'
+              marginBottom: 'clamp(16px, 4vw, 24px)'
             }}
           >
             目標を具体的に決めていきましょう
@@ -151,20 +160,24 @@ const GoalInputModal: React.FC<GoalInputModalProps> = ({
             決まっていなければ空欄で構いません
           </p>
 
+          {/* 各ボタンに遅延アニメーションを追加 */}
           <button
             onClick={() => handleTypeSelect('qualitative')}
-            className="w-full p-4 rounded-2xl transition-all hover:bg-green-50"
+            className={`w-full p-3 sm:p-4 rounded-2xl transition-all duration-300 ${
+              isVisible ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-4'
+            } hover:scale-105 hover:shadow-lg hover:-translate-y-1`}
             style={{
               background: '#FFFFFF',
-              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)'
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)',
+              transitionDelay: '100ms'
             }}
           >
             <div className="text-left">
-              <p
+             <p
                 style={{
                   fontFamily: 'Inter',
                   fontWeight: 600,
-                  fontSize: '16px',
+                  fontSize: 'clamp(14px, 3.5vw, 16px)',
                   color: '#13AE67',
                   marginBottom: '4px'
                 }}
@@ -177,7 +190,7 @@ const GoalInputModal: React.FC<GoalInputModalProps> = ({
                 style={{
                   fontFamily: 'Inter',
                   fontWeight: 400,
-                  fontSize: '12px',
+                  fontSize: 'clamp(10px, 2.5vw, 12px)',
                   color: '#9CA3AF',
                   ...(hasExistingGoal && existingGoalType === 'qualitative' && {
                     background: 'rgba(19, 174, 103, 0.1)',
@@ -196,10 +209,13 @@ const GoalInputModal: React.FC<GoalInputModalProps> = ({
 
           <button
             onClick={() => handleTypeSelect('revenue')}
-            className="w-full p-4 rounded-2xl transition-all hover:bg-green-50"
+            className={`w-full p-4 rounded-2xl transition-all duration-300 ${
+              isVisible ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-4'
+            } hover:scale-105 hover:shadow-lg hover:-translate-y-1`}
             style={{
               background: '#FFFFFF',
-              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)'
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)',
+              transitionDelay: '200ms'
             }}
           >
             <div className="text-left">
@@ -207,7 +223,7 @@ const GoalInputModal: React.FC<GoalInputModalProps> = ({
                 style={{
                   fontFamily: 'Inter',
                   fontWeight: 600,
-                  fontSize: '14px',
+                  fontSize: 'clamp(12px, 3vw, 14px)',
                   color: '#13AE67',
                   marginBottom: '4px'
                 }}
@@ -220,7 +236,7 @@ const GoalInputModal: React.FC<GoalInputModalProps> = ({
                 style={{
                   fontFamily: 'Inter',
                   fontWeight: 400,
-                  fontSize: '12px',
+                  fontSize: 'clamp(10px, 2.5vw, 12px)',
                   color: '#9CA3AF',
                   ...(hasExistingGoal && existingGoalType === 'revenue' && {
                     background: 'rgba(19, 174, 103, 0.1)',
@@ -239,10 +255,13 @@ const GoalInputModal: React.FC<GoalInputModalProps> = ({
 
           <button
             onClick={() => handleTypeSelect('grossProfit')}
-            className="w-full p-4 rounded-2xl transition-all hover:bg-green-50"
+            className={`w-full p-4 rounded-2xl transition-all duration-300 ${
+              isVisible ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-4'
+            } hover:scale-105 hover:shadow-lg hover:-translate-y-1`}
             style={{
               background: '#FFFFFF',
-              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)'
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)',
+              transitionDelay: '300ms'
             }}
           >
             <div className="text-left">
@@ -250,7 +269,7 @@ const GoalInputModal: React.FC<GoalInputModalProps> = ({
                 style={{
                   fontFamily: 'Inter',
                   fontWeight: 600,
-                  fontSize: '14px',
+                  fontSize: 'clamp(12px, 3vw, 14px)',
                   color: '#13AE67',
                   marginBottom: '4px'
                 }}
@@ -263,7 +282,7 @@ const GoalInputModal: React.FC<GoalInputModalProps> = ({
                 style={{
                   fontFamily: 'Inter',
                   fontWeight: 400,
-                  fontSize: '12px',
+                  fontSize: 'clamp(10px, 2.5vw, 12px)',
                   color: '#9CA3AF',
                   ...(hasExistingGoal && existingGoalType === 'grossProfit' && {
                     background: 'rgba(19, 174, 103, 0.1)',
@@ -282,10 +301,13 @@ const GoalInputModal: React.FC<GoalInputModalProps> = ({
 
           <button
             onClick={() => handleTypeSelect('operatingProfit')}
-            className="w-full p-4 rounded-2xl transition-all hover:bg-green-50"
+            className={`w-full p-4 rounded-2xl transition-all duration-300 ${
+              isVisible ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-4'
+            } hover:scale-105 hover:shadow-lg hover:-translate-y-1`}
             style={{
               background: '#FFFFFF',
-              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)'
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)',
+              transitionDelay: '400ms'
             }}
           >
             <div className="text-left">
@@ -293,7 +315,7 @@ const GoalInputModal: React.FC<GoalInputModalProps> = ({
                 style={{
                   fontFamily: 'Inter',
                   fontWeight: 600,
-                  fontSize: '14px',
+                  fontSize: 'clamp(12px, 3vw, 14px)',
                   color: '#13AE67',
                   marginBottom: '4px'
                 }}
@@ -306,7 +328,7 @@ const GoalInputModal: React.FC<GoalInputModalProps> = ({
                 style={{
                   fontFamily: 'Inter',
                   fontWeight: 400,
-                  fontSize: '12px',
+                  fontSize: 'clamp(10px, 2.5vw, 12px)',
                   color: '#9CA3AF',
                   ...(hasExistingGoal && existingGoalType === 'operatingProfit' && {
                     background: 'rgba(19, 174, 103, 0.1)',
@@ -331,7 +353,7 @@ const GoalInputModal: React.FC<GoalInputModalProps> = ({
                   style={{
                     fontFamily: 'Inter',
                     fontWeight: 500,
-                    fontSize: '14px',
+                    fontSize: 'clamp(12px, 3vw, 14px)',
                     color: '#13AE67',
                     display: 'block',
                     marginBottom: '8px'
@@ -343,18 +365,19 @@ const GoalInputModal: React.FC<GoalInputModalProps> = ({
                   value={goalText}
                   onChange={(e) => setGoalText(e.target.value)}
                   placeholder="例: 新しいパソコンを買えるようになっている"
-                  className="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary placeholder-gray-200"
+                  className="w-full p-2 sm:p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary placeholder-gray-200"
                   style={{
                     fontFamily: 'Inter',
-                    fontSize: '14px',
-                    minHeight: '120px'
+                    fontSize: 'clamp(12px, 3vw, 14px)',
+                    minHeight: 'clamp(100px, 20vw, 120px)'
                   }}
                   maxLength={22}
                 />
                 <p
                   style={{
                     fontFamily: 'Inter',
-                    fontSize: '12px',
+                    fontWeight: 400,
+                    fontSize: 'clamp(10px, 2.5vw, 12px)',
                     color: '#9CA3AF',
                     textAlign: 'right',
                     marginTop: '4px'
@@ -372,7 +395,7 @@ const GoalInputModal: React.FC<GoalInputModalProps> = ({
                   style={{
                     fontFamily: 'Inter',
                     fontWeight: 500,
-                    fontSize: '14px',
+                    fontSize: 'clamp(12px, 3vw, 14px)',
                     color: '#13AE67',
                     marginBottom: '4px'
                   }}
@@ -385,7 +408,7 @@ const GoalInputModal: React.FC<GoalInputModalProps> = ({
                   style={{
                     fontFamily: 'Inter',
                     fontWeight: 400,
-                    fontSize: '12px',
+                    fontSize: 'clamp(10px, 2.5vw, 12px)',
                     color: '#6B7280'
                   }}
                 >
@@ -398,7 +421,7 @@ const GoalInputModal: React.FC<GoalInputModalProps> = ({
                   style={{
                     fontFamily: 'Inter',
                     fontWeight: 500,
-                    fontSize: '14px',
+                    fontSize: 'clamp(14px, 3.5vw, 16px)',
                     color: '#1E1F1F',
                     display: 'block',
                     marginBottom: '8px'
@@ -412,7 +435,7 @@ const GoalInputModal: React.FC<GoalInputModalProps> = ({
                   className="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary"
                   style={{
                     fontFamily: 'Inter',
-                    fontSize: '14px'
+                    fontSize: 'clamp(12px, 3vw, 14px)'
                   }}
                 >
                   {Array.from({ length: 10 }, (_, i) => i + 1).map((year) => (
@@ -428,7 +451,7 @@ const GoalInputModal: React.FC<GoalInputModalProps> = ({
                   style={{
                     fontFamily: 'Inter',
                     fontWeight: 500,
-                    fontSize: '14px',
+                    fontSize: 'clamp(12px, 3vw, 14px)',
                     color: '#1E1F1F',
                     display: 'block',
                     marginBottom: '8px'
@@ -441,10 +464,10 @@ const GoalInputModal: React.FC<GoalInputModalProps> = ({
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
                   placeholder="例:1000"
-                  className="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary placeholder-gray-200"
+                  className="w-full p-2 sm:p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary"
                   style={{
                     fontFamily: 'Inter',
-                    fontSize: '14px'
+                    fontSize: 'clamp(12px, 3vw, 14px)'
                   }}
                   min="0"
                 />
@@ -456,7 +479,7 @@ const GoalInputModal: React.FC<GoalInputModalProps> = ({
                     style={{
                       fontFamily: 'Inter',
                       fontWeight: 400,
-                      fontSize: '12px',
+                      fontSize: 'clamp(10px, 2.5vw, 12px)',
                       color: '#6B7280',
                       marginBottom: '4px'
                     }}
@@ -467,7 +490,7 @@ const GoalInputModal: React.FC<GoalInputModalProps> = ({
                     style={{
                       fontFamily: 'Inter',
                       fontWeight: 600,
-                      fontSize: '16px',
+                      fontSize: 'clamp(14px, 3.5vw, 16px)',
                       color: '#13AE67'
                     }}
                   >
@@ -485,13 +508,13 @@ const GoalInputModal: React.FC<GoalInputModalProps> = ({
 
         {/* フッター */}
         {selectedType && (
-          <div className="p-6 flex gap-3" style={{ boxShadow: '0 -1px 0 0 rgba(229, 231, 235, 0.5)' }}>
-            <button
+        <div className="p-4 sm:p-6 flex gap-2 sm:gap-3" style={{ boxShadow: '0 -1px 0 0 rgba(229, 231, 235, 0.5)' }}>
+          <button
               onClick={handleBack}
-              className="flex-1 py-3 rounded-full font-medium transition-colors hover:bg-gray-50"
+              className="flex-1 py-2 sm:py-3 rounded-full font-medium transition-all duration-300 hover:scale-105 hover:shadow-md hover:-translate-y-0.5 hover:bg-gray-50"
               style={{
                 fontFamily: 'Inter',
-                fontSize: '14px',
+                fontSize: 'clamp(12px, 3vw, 14px)',
                 color: '#6B7280',
                 boxShadow: '0 0 0 2px #E5E7EB'
               }}
@@ -501,10 +524,12 @@ const GoalInputModal: React.FC<GoalInputModalProps> = ({
             <button
               onClick={handleSubmit}
               disabled={isSubmitDisabled()}
-              className="flex-1 py-3 rounded-full font-medium transition-all"
+              className={`flex-1 py-3 rounded-full font-medium transition-all duration-300 ${
+                !isSubmitDisabled() && 'hover:scale-105 hover:shadow-lg hover:-translate-y-0.5'
+              }`}
               style={{
                 fontFamily: 'Inter',
-                fontSize: '14px',
+                fontSize: 'clamp(14px, 3.5vw, 16px)',
                 background: isSubmitDisabled() ? '#E5E7EB' : '#13AE67',
                 color: isSubmitDisabled() ? '#9CA3AF' : '#FFFFFF',
                 cursor: isSubmitDisabled() ? 'not-allowed' : 'pointer'
